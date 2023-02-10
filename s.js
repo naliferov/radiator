@@ -1,5 +1,6 @@
 const {Worker, isMainThread, parentPort, workerData} = await import('node:worker_threads');
 
+//add proxy for auto updates
 globalThis.s ??= {};
 (async(s) => {
     s.nodeProcess = (await import('node:process')).default;
@@ -22,30 +23,6 @@ globalThis.s ??= {};
     s.nodeProcess.on('unhandledRejection', (e) => {
         console.error('[[unhandledRejection]]', e); s.loop();
     });
-    return;
-
-
-    let can = 1, interval;
-    s.loopStart = () => {
-        if (interval) return;
-        interval = setInterval(async () => {
-            if (!can) return; can = 0;
-            const js = await s.nodeFS.readFile(s.replFile);
-            try { eval(js.toString()); }
-            catch (e) { console.error('try catch', e); }
-            can = 1;
-        }, s.loopDelay);
-    }
-
-    s.loopRestart = e => {
-        e ? console.error('[[unhandled err]]', e) : console.log('reset interval');
-        clearInterval(interval); interval = 0;
-        can = 1;
-        setTimeout(s.loopStart, 500);
-    }
-    s.nodeProcess.on('unhandledRejection', e => s.loopRestart(e));
-    s.nodeProcess.on('uncaughtException', e => s.loopRestart(e));
-    s.loopStart();
     return;
 
     if (0) { //DE
