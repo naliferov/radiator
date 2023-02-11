@@ -120,22 +120,25 @@
         };*/
     }
 
-    //s.l(s.OS);
+    //console.log(s.net);
 
-    /*s.httpSlicer = async (rq, rs) => {
+    s.httpSlicer = async (rq, rs) => {
 
-        if (DE && s.isMainNode && up.m === '/k' && up.k === 'js' && up.v) {
-            await s.fs.writeFile(`scripts/${up.nodeId}.js`, up.v);
-        }
-        await (await f('03454982-4657-44d0-a21a-bb034392d3a6'))(up, s.updateIds, s.netNodes, s.netProcs, f, s.triggerDump);
-        (await f('4b60621c-e75a-444a-a36e-f22e7183fc97'))({
-            rq, rs, httpHandler: s.httpSlicer, stup: s.stup, st: s.st, updatePermit: s.isMainNode
+        //todo //if (!rs.isLongRequest && !rs.writableEnded) rs.s('rs end');
+
+        const next = (await s.f('4b60621c-e75a-444a-a36e-f22e7183fc97'))({
+            rq, rs,
+            stup: async up => {
+                //await (await s.f('03454982-4657-44d0-a21a-bb034392d3a6'))(up, s.updateIds, s.net, s.f);
+            },
+            st: s,
+            updatePermit: true
         });
+        if (!next) return;
 
         const m = {
             'GET:/': async () => rs.s(await s.f('ed85ee2d-0f01-4707-8541-b7f46e79192e'), 'text/html'),
-            'GET:/unknown': async () => rs.s(await s.fs.readFile(selfId)),
-            'GET:/sw': async () => rs.s(await f('ebac14bb-e6b1-4f6c-95ea-017a44a0cc28'), 'text/javascript'),
+            //'GET:/unknown': async () => rs.s(await s.fs.readFile(selfId)), //todo
             'GET:/node': () => {
                 if (!rq.query.id) { rs.s('id is empty'); return; }
                 const node = g(rq.query.id);
@@ -150,18 +153,19 @@
                 rq.on('close', () => { s.connectedRS = 0; s.log.info('SSE closed'); });
             },
         }
+
+        // if (s.isMainNode && up.m === '/k' && up.k === 'js' && up.v) {
+        //     await s.fs.writeFile(`scripts/${up.nodeId}.js`, up.v);
+        // }
         //if (s.isMainNode) m['POST:/unknown'] = async () => await s.fs.writeFile(selfId, (await parseRqBody(rq)).js);
 
         if (await s.resolveStatic(rq, rs)) return;
         if (m[rq.mp]) { await m[rq.mp](); return; }
         rs.s('page not found');
-    }*/
+    }
 
-    //s.l(s.execJS.toString());
+    //console.log(s.artistList.slice(200, 300))
 
-
-    //s.fs.readFile();
-    //const artistListStr = await s.nodeFS.readFile('/Users/admin/Dropbox/notes/music artists list.txt');
     /*const nodeId = e.filename.slice(0, -3);
                 const node = s.st[nodeId];
                 if (!node) continue;
