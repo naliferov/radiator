@@ -164,8 +164,6 @@
         rs.s('page not found');
     }
 
-    //console.log(s.artistList.slice(200, 300))
-
     /*const nodeId = e.filename.slice(0, -3);
                 const node = s.st[nodeId];
                 if (!node) continue;
