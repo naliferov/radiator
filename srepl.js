@@ -1,18 +1,45 @@
 (async () => {
-    s.onceDB ??= {}; if (!s.once) s.once = id => s.onceDB[id] ? 0 : s.onceDB[id] = 1;
+
+    if (typeof window !== 'undefined') {
+        globalThis.s ??= {};
+        globalThis.f = async (id, forceRequest) => {
+            //if (forceRequest) return s.pa(`fetch('/node?id=${id}')`, 'r.text()', 'eval(r)()');
+            return s.execJS(id);
+        }
+        let state = await (await fetch('/st')).json();
+        for (let k in state) {
+            const obj = state[k];
+        }
+        //(new (await f('d75b3ec3-7f79-4749-b393-757c1836a03e'))).run();
+        return;
+    }
+    //if (!s.netProcs.parent) s.netProcs.parent = new s.httpClient(parentUrl);
+
+    s.onceDB ??= {}; s.once = id => s.onceDB[id] ? 0 : s.onceDB[id] = 1;
     if (!s.server) {
         s.nodeHttp = await import('node:http');
         s.server = s.nodeHttp.createServer((rq, rs) => { if (s.httpSlicer) s.httpSlicer(rq, rs); });
     }
     s.l = console.log;
     s.dumpSkip = new Set([
-        'dumpCreate', 'dumping', 'dumpSkip', 'nodeProcess', 'nodeFS', 'nodeHttp',
+        'connectedRS', 'dumpCreate', 'dumping', 'dumpSkip', 'f', 'nodeProcess', 'nodeFS', 'nodeHttp',
         'l', 'loadStateFromFS', 'loadStateDone', 'loop', 'loopDelay', 'loopStart', 'loopRestart', 'loopBreak',
-        'once', 'onceDB', 'replFile',  'scriptsChangeSlicer', 'server', 'uuidREGEX',
+        'once', 'onceDB', 'replFile',  'scriptsChangeSlicer', 'server', 'updateIds', 'uuidREGEX',
     ]);
     s.uuidREGEX = /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}/;
-    // s.stupIds ??= {};
-    // s.eventSource ??= {};
+    s.updateIds ??= {};
+    s.eventSource ??= {};
+    s.connectedRS ??= {};
+    s.isMainNode = 1;
+
+    if (s['94a91287-7149-4bbd-9fef-1f1d68f65d70']) {
+        s.httpClient = new (await s.f('94a91287-7149-4bbd-9fef-1f1d68f65d70'));
+        s.Logger = await s.f('20cb8896-bdf4-4538-a471-79fb684ffb86');
+        s.log = new s.Logger;
+        s.fs = new (await s.f('9f0e6908-4f44-49d1-8c8e-10e1b0128858'))(s.log);
+        s.util = await s.f('dc9436fd-bec3-4016-a2f6-f0300f70a905');
+        s.OS = await s.f('a4bc6fd6-649f-4709-8a74-d58523418c29');
+    }
 
     s.dumpCreate = () => {
         if (s.dumping) return;
@@ -39,7 +66,7 @@
             } else {
                 s.l('dump dry run');
             }
-            s.l('dumpCount: ', Object.keys(dump).length, 'total count', Object.keys(s).length);
+            s.l('dumpCount:', Object.keys(dump).length, 'totalCount:', Object.keys(s).length);
         }, 1000);
     }
     s.loadStateFromFS = async () => {
@@ -60,6 +87,13 @@
         s.loadStateDone = 1;
         s.l('s count', 'fs s', Object.keys(state).length, 'total s', Object.keys(s).length);
     }
+    s.execJS = id => {
+        const n = s[id]; if (!n) { console.error(`node not found by id [${id}]`); return; }
+        try {
+            return eval(n.js)();
+        } catch (e) { console.log(n.id); console.error(e); }
+    }
+    s.f = s.execJS;
     s.fsChangesSlicer = async (path) => {
         return {
             isStarted: false,
@@ -74,8 +108,9 @@
             stop: function () { this.ac.abort(); }
         }
     }
-    if (s.once(7)) {
+    if (s.once(18)) {
         console.log('ONCE', new Date);
+        //s.loadStateFromFS();
 
         //s.dumpCreate();
         //s.scriptsChangeSlicer = await s.fsChangesSlicer('scripts'); s.scriptsChangeSlicer.start();
@@ -85,9 +120,48 @@
         };*/
     }
 
+    //s.l(s.OS);
+
+    /*s.httpSlicer = async (rq, rs) => {
+
+        if (DE && s.isMainNode && up.m === '/k' && up.k === 'js' && up.v) {
+            await s.fs.writeFile(`scripts/${up.nodeId}.js`, up.v);
+        }
+        await (await f('03454982-4657-44d0-a21a-bb034392d3a6'))(up, s.updateIds, s.netNodes, s.netProcs, f, s.triggerDump);
+        (await f('4b60621c-e75a-444a-a36e-f22e7183fc97'))({
+            rq, rs, httpHandler: s.httpSlicer, stup: s.stup, st: s.st, updatePermit: s.isMainNode
+        });
+
+        const m = {
+            'GET:/': async () => rs.s(await s.f('ed85ee2d-0f01-4707-8541-b7f46e79192e'), 'text/html'),
+            'GET:/unknown': async () => rs.s(await s.fs.readFile(selfId)),
+            'GET:/sw': async () => rs.s(await f('ebac14bb-e6b1-4f6c-95ea-017a44a0cc28'), 'text/javascript'),
+            'GET:/node': () => {
+                if (!rq.query.id) { rs.s('id is empty'); return; }
+                const node = g(rq.query.id);
+                if (node && node.js) rs.s(node.js, 'text/javascript; charset=utf-8');
+                else rs.s('script not found');
+            },
+            'GET:/consoleMonitor': () => {
+                s.log.info('SSE connected');
+                s.connectedRS = rs;
+                rs.writeHead(200, {'Content-Type': 'text/event-stream', 'Connection': 'keep-alive', 'Cache-Control': 'no-cache'});
+                rs.write(`data: EventSource connected \n\n`);
+                rq.on('close', () => { s.connectedRS = 0; s.log.info('SSE closed'); });
+            },
+        }
+        //if (s.isMainNode) m['POST:/unknown'] = async () => await s.fs.writeFile(selfId, (await parseRqBody(rq)).js);
+
+        if (await s.resolveStatic(rq, rs)) return;
+        if (m[rq.mp]) { await m[rq.mp](); return; }
+        rs.s('page not found');
+    }*/
+
+    //s.l(s.execJS.toString());
+
+
     //s.fs.readFile();
     //const artistListStr = await s.nodeFS.readFile('/Users/admin/Dropbox/notes/music artists list.txt');
-
     /*const nodeId = e.filename.slice(0, -3);
                 const node = s.st[nodeId];
                 if (!node) continue;
@@ -102,53 +176,16 @@
                 } catch (e) {
                     s.log.error(e.toString(), e.stack);
                 }*/
-
-    //s.l(Object.keys(s.getTimestamp));
-    //s.l(s.getTimestamp());
     //for (let k in s) { if (!k.match(/^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}/)) console.log(k); }
-
    /*
-    //console.log(s.wwwwwaaa());
-    s.execJS = id => {
-        const n = s.st[id]; if (!n) { console.error(`node not found by id [${id}]`); return; }
-        try {
-            if (!n.__js__) n.__js__ = eval(n.js);
-            return n.__js__();
-        } catch (e) { console.log(n.id); console.error(e); }
-    }
-    s.e = event => {}
     s.f = async id => s.execJS(id);*/
 
-    // s.st = await s.pa('import("node:fs")', 'r.promises', 'r.readFile("./state/nodes.json")', 'JSON.parse(r)');
-    //
-    // s.isMainNode = netNodeId === 'main';
-    // s.Logger = await f('20cb8896-bdf4-4538-a471-79fb684ffb86');
-    // s.log = new s.Logger;
-    // s.fs = new (await f('9f0e6908-4f44-49d1-8c8e-10e1b0128858'))(s.log);
-    // s.f = await f('dc9436fd-bec3-4016-a2f6-f0300f70a905');
-    // s.OS = await f('a4bc6fd6-649f-4709-8a74-d58523418c29');
-    // s.httpClient = await f('94a91287-7149-4bbd-9fef-1f1d68f65d70');
-    // s.EventSource = (await import('eventsource')).default;
+    //s.server.close(() => console.log('httpServer stop')); s.server.closeAllConnections();
+    //s.server.listen(8080, () => console.log(`httpServer start port: 8080`));
 
-    if (typeof window !== 'undefined') {
-        s.f = async (id, forceRequest) => {
-            //if (forceRequest) return s.pa(`fetch('/node?id=${id}')`, 'r.text()', 'eval(r)()');
-            return s.execJS(id);
-        }
-        //s.st = await (await fetch('/st')).json();
-        //(new (await f('d75b3ec3-7f79-4749-b393-757c1836a03e'))).run();
-        return;
-    }
-    //console.log('test')
+    /*if (!s.intervalIteration) return;
+    if (procNodeId) { console.log(`procNodeId: ${procNodeId}`); await f(procNodeId); return; }
+
+    const netNodesLogic = await f('f877c6d7-e52a-48fb-b6f7-cf53c9181cc1');
+    await netNodesLogic(netNodeId);*/
 })();
-
-//console.clear();
-
-//delete s.stateDumping; console.log(Object.keys(s));
-
-/*s.httpSlicer = (rq, rs) => {
-    rs.end('test 9900573jf www wwwwwa oioio');
-}*/
-
-//s.server.close(() => console.log('httpServer stop')); s.server.closeAllConnections();
-//s.server.listen(8080, () => console.log(`httpServer start port: 8080`));
