@@ -10,6 +10,7 @@
         for (let k in state) {
             const obj = state[k];
         }
+        console.log(state);
         //(new (await f('d75b3ec3-7f79-4749-b393-757c1836a03e'))).run();
         return;
     }
@@ -108,25 +109,37 @@
             stop: function () { this.ac.abort(); }
         }
     }
-    if (s.once(18)) {
+    if (s.once(25)) {
         console.log('ONCE', new Date);
         //s.loadStateFromFS();
-
         //s.dumpCreate();
-        //s.scriptsChangeSlicer = await s.fsChangesSlicer('scripts'); s.scriptsChangeSlicer.start();
-        /*s.scriptsChangeSlicer.slicer = async (e) => {
+        if (!s.scriptsChangeSlicer) {
+            s.scriptsChangeSlicer = await s.fsChangesSlicer('scripts');
+            s.scriptsChangeSlicer.start();
+        }
+        s.scriptsChangeSlicer.slicer = async (e) => {
             if (e.eventType !== 'change') return;
-            console.log(e);
-        };*/
+            const nodeId = e.filename.slice(0, -3);
+            const node = s[nodeId];
+            if (!node) return;
+            console.log('updateFromFS', node.id, node.name);
+            const newJS = await s.fs.readFile('scripts/' + e.filename, 'utf8');
+            if (node.js === newJS) { console.log('js already updated'); return; }
+            try { eval(newJS); node.js = newJS; s.dumpCreate(); }
+            catch (e) { s.log.error(e.toString(), e.stack); }
+        };
     }
+    //s.l(s.artistList.slice(700, 800));
 
-    //console.log(s.net);
+    //console.log(new Date());
+
+    //console.log(s.scriptsChangeSlicer);
+    //console.log(s.scriptsChangeSlicer);
 
     s.httpSlicer = async (rq, rs) => {
-
         //todo //if (!rs.isLongRequest && !rs.writableEnded) rs.s('rs end');
-
-        const next = (await s.f('4b60621c-e75a-444a-a36e-f22e7183fc97'))({
+        const mainSlicer = await s.f('4b60621c-e75a-444a-a36e-f22e7183fc97');
+        const next = mainSlicer({
             rq, rs,
             stup: async up => {
                 //await (await s.f('03454982-4657-44d0-a21a-bb034392d3a6'))(up, s.updateIds, s.net, s.f);
@@ -164,30 +177,15 @@
         rs.s('page not found');
     }
 
-    /*const nodeId = e.filename.slice(0, -3);
-                const node = s.st[nodeId];
-                if (!node) continue;
-
-                console.log('updateFromFS', node.id, node.name);
-                const newJS = await s.fs.readFile('scripts/' + e.filename, 'utf8');
-                if (node.js === newJS) { console.log('js already updated'); continue; }
-                try {
-                    const js = eval(newJS); if (js) node.__js__ = js;
-                    node.js = newJS;
-                    s.triggerDump();
-                } catch (e) {
-                    s.log.error(e.toString(), e.stack);
-                }*/
+/*
     //for (let k in s) { if (!k.match(/^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}/)) console.log(k); }
-   /*
-    s.f = async id => s.execJS(id);*/
-
+ */
     //s.server.close(() => console.log('httpServer stop')); s.server.closeAllConnections();
     //s.server.listen(8080, () => console.log(`httpServer start port: 8080`));
 
-    /*if (!s.intervalIteration) return;
-    if (procNodeId) { console.log(`procNodeId: ${procNodeId}`); await f(procNodeId); return; }
+    //if (procNodeId) { console.log(`procNodeId: ${procNodeId}`); await f(procNodeId); return; }
+    //s.l(new Date());
 
-    const netNodesLogic = await f('f877c6d7-e52a-48fb-b6f7-cf53c9181cc1');
-    await netNodesLogic(netNodeId);*/
+    //const netNodesLogic = await f('f877c6d7-e52a-48fb-b6f7-cf53c9181cc1');
+    //await netNodesLogic(netNodeId);
 })();
