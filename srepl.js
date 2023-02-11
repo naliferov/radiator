@@ -184,7 +184,7 @@
     //s.server.listen(8080, () => console.log(`httpServer start port: 8080`));
 
     //if (procNodeId) { console.log(`procNodeId: ${procNodeId}`); await f(procNodeId); return; }
-    //s.l(new Date());
+    s.l(new Date());
 
     //const netNodesLogic = await f('f877c6d7-e52a-48fb-b6f7-cf53c9181cc1');
     //await netNodesLogic(netNodeId);

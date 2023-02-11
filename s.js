@@ -8,8 +8,7 @@ globalThis.s ??= {};
         console.log('loop start');
         while (1) {
             await new Promise(r => setTimeout(r, s.loopDelay));
-            const js = await s.nodeFS.readFile(s.replFile);
-            try { eval(js.toString()); }
+            try { eval((await s.nodeFS.readFile(s.replFile)).toString()); }
             catch (e) { console.log(e); }
         }
     };
