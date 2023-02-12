@@ -5,7 +5,6 @@ globalThis.s ??= {};
     s.loopDelay = 2000;
     s.replFile = 'srepl.js';
     s.loop = async () => {
-        console.log('loop start');
         while (1) {
             await new Promise(r => setTimeout(r, s.loopDelay));
             try { eval((await s.nodeFS.readFile(s.replFile)).toString()); }

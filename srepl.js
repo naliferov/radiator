@@ -1,20 +1,12 @@
 (async () => {
 
     if (typeof window !== 'undefined') {
-        globalThis.s ??= {};
-        globalThis.f = async (id, forceRequest) => {
-            //if (forceRequest) return s.pa(`fetch('/node?id=${id}')`, 'r.text()', 'eval(r)()');
-            return s.execJS(id);
-        }
-        let state = await (await fetch('/st')).json();
-        for (let k in state) {
-            const obj = state[k];
-        }
-        console.log(state);
-        //(new (await f('d75b3ec3-7f79-4749-b393-757c1836a03e'))).run();
+        globalThis.s = await (await fetch('/s')).json();
+        globalThis.f = async (id) => s.execJS.__js__(id);
+        if (s.execJS && s.execJS.js) s.execJS.__js__ = eval(s.execJS.js);
+        (new (await f('d75b3ec3-7f79-4749-b393-757c1836a03e'))).run();
         return;
     }
-    //if (!s.netProcs.parent) s.netProcs.parent = new s.httpClient(parentUrl);
 
     s.onceDB ??= {}; s.once = id => s.onceDB[id] ? 0 : s.onceDB[id] = 1;
     if (!s.server) {
@@ -23,59 +15,61 @@
     }
     s.l = console.log;
     s.dumpSkip = new Set([
-        'connectedRS', 'dumpCreate', 'dumping', 'dumpSkip', 'f', 'nodeProcess', 'nodeFS', 'nodeHttp',
+        'connectedRS', 'dumpToDisc', 'dumpCreate', 'dumping', 'dumpSkip', 'f', 'nodeProcess', 'nodeFS', 'nodeHttp',
         'l', 'loadStateFromFS', 'loadStateDone', 'loop', 'loopDelay', 'loopStart', 'loopRestart', 'loopBreak',
         'once', 'onceDB', 'replFile',  'scriptsChangeSlicer', 'server', 'updateIds', 'uuidREGEX',
     ]);
     s.uuidREGEX = /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}/;
     s.updateIds ??= {};
-    s.eventSource ??= {};
     s.connectedRS ??= {};
     s.isMainNode = 1;
 
     if (s['94a91287-7149-4bbd-9fef-1f1d68f65d70']) {
         s.httpClient = new (await s.f('94a91287-7149-4bbd-9fef-1f1d68f65d70'));
-        s.Logger = await s.f('20cb8896-bdf4-4538-a471-79fb684ffb86');
-        s.log = new s.Logger;
+        s.logger = await s.f('20cb8896-bdf4-4538-a471-79fb684ffb86');
+        s.log = new s.logger;
         s.fs = new (await s.f('9f0e6908-4f44-49d1-8c8e-10e1b0128858'))(s.log);
         s.util = await s.f('dc9436fd-bec3-4016-a2f6-f0300f70a905');
-        s.OS = await s.f('a4bc6fd6-649f-4709-8a74-d58523418c29');
+        s.os = await s.f('a4bc6fd6-649f-4709-8a74-d58523418c29');
     }
 
     s.dumpCreate = () => {
+        const dump = {};
+        for (let k in s) {
+            if (s.dumpSkip.has(k)) continue;
+            const v = s[k]; const t = typeof v;
+
+            if (k.match(s.uuidREGEX)) dump[k] = v;
+            else {
+                if (t === 'function') {
+                    dump[k] = {js: v.toString()}; console.log(k);
+                } else if (t === 'object' || t === 'boolean' || t === 'string' || t === 'number') {
+                    dump[k] = v;
+                } else s.l('unknown object type', t, k, v);
+            }
+        }
+        return dump;
+    }
+    s.dumpToDisc = () => {
         if (s.dumping) return;
         s.dumping = setTimeout(async () => {
             s.l('memory dump', new Date);
-
-            const dump = {};
-            for (let k in s) {
-                if (s.dumpSkip.has(k)) continue;
-                const v = s[k]; const t = typeof v;
-
-                if (k.match(s.uuidREGEX)) dump[k] = v;
-                else {
-                    if (t === 'function') {
-                        dump[k] = {js: v.toString()}; console.log(k);
-                    } else if (t === 'object' || t === 'boolean' || t === 'string' || t === 'number') {
-                        dump[k] = v;
-                    } else s.l('unknown object type', t, k, v);
-                }
-            }
-            s.dumping = 0;
+            const dump = s.dumpCreate();
             if (s.loadStateDone) {
                 await s.nodeFS.writeFile('./state/state.json', JSON.stringify(dump));
             } else {
                 s.l('dump dry run');
             }
             s.l('dumpCount:', Object.keys(dump).length, 'totalCount:', Object.keys(s).length);
+            s.dumping = 0;
         }, 1000);
     }
     s.loadStateFromFS = async () => {
         s.l('loadStateFromFS');
         const state = JSON.parse(await s.nodeFS.readFile('state/state.json', 'utf8'));
+
         for (let k in state) {
             const v = state[k]; const vType = typeof v;
-
             if (k.match(s.uuidREGEX)) {
                 s[k] = v;
             } else if (vType === 'object') {
@@ -90,9 +84,8 @@
     }
     s.execJS = id => {
         const n = s[id]; if (!n) { console.error(`node not found by id [${id}]`); return; }
-        try {
-            return eval(n.js)();
-        } catch (e) { console.log(n.id); console.error(e); }
+        try { return eval(n.js)(); }
+        catch (e) { console.log(n.id); console.error(e); }
     }
     s.f = s.execJS;
     s.fsChangesSlicer = async (path) => {
@@ -109,10 +102,10 @@
             stop: function () { this.ac.abort(); }
         }
     }
-    if (s.once(25)) {
+    if (s.once(38)) {
         console.log('ONCE', new Date);
-        //s.loadStateFromFS();
-        //s.dumpCreate();
+        //await s.loadStateFromFS();
+        //await s.dumpToDisc();
         if (!s.scriptsChangeSlicer) {
             s.scriptsChangeSlicer = await s.fsChangesSlicer('scripts');
             s.scriptsChangeSlicer.start();
@@ -125,33 +118,31 @@
             console.log('updateFromFS', node.id, node.name);
             const newJS = await s.fs.readFile('scripts/' + e.filename, 'utf8');
             if (node.js === newJS) { console.log('js already updated'); return; }
-            try { eval(newJS); node.js = newJS; s.dumpCreate(); }
+            try { eval(newJS); node.js = newJS; s.dumpToDisc(); }
             catch (e) { s.log.error(e.toString(), e.stack); }
-        };
+        }
     }
     //s.l(s.artistList.slice(700, 800));
 
-    //console.log(new Date());
-
-    //console.log(s.scriptsChangeSlicer);
-    //console.log(s.scriptsChangeSlicer);
-
     s.httpSlicer = async (rq, rs) => {
+
         //todo //if (!rs.isLongRequest && !rs.writableEnded) rs.s('rs end');
         const mainSlicer = await s.f('4b60621c-e75a-444a-a36e-f22e7183fc97');
-        const next = mainSlicer({
+        const next = await mainSlicer({
             rq, rs,
             stup: async up => {
-                //await (await s.f('03454982-4657-44d0-a21a-bb034392d3a6'))(up, s.updateIds, s.net, s.f);
+                /*await (await s.f('03454982-4657-44d0-a21a-bb034392d3a6'))(up, s.updateIds, s.net, s.f);*/
+                // if (s.isMainNode && up.m === '/k' && up.k === 'js' && up.v) {
+                //     await s.fs.writeFile(`scripts/${up.nodeId}.js`, up.v);
+                // }
             },
-            st: s,
             updatePermit: true
         });
         if (!next) return;
-
+        //DE FRONTEND
         const m = {
             'GET:/': async () => rs.s(await s.f('ed85ee2d-0f01-4707-8541-b7f46e79192e'), 'text/html'),
-            //'GET:/unknown': async () => rs.s(await s.fs.readFile(selfId)), //todo
+            'GET:/js': async () => rs.s(await s.fs.readFile(s.replFile), 'text/javascript; charset=utf-8'),
             'GET:/node': () => {
                 if (!rq.query.id) { rs.s('id is empty'); return; }
                 const node = g(rq.query.id);
@@ -166,10 +157,6 @@
                 rq.on('close', () => { s.connectedRS = 0; s.log.info('SSE closed'); });
             },
         }
-
-        // if (s.isMainNode && up.m === '/k' && up.k === 'js' && up.v) {
-        //     await s.fs.writeFile(`scripts/${up.nodeId}.js`, up.v);
-        // }
         //if (s.isMainNode) m['POST:/unknown'] = async () => await s.fs.writeFile(selfId, (await parseRqBody(rq)).js);
 
         if (await s.resolveStatic(rq, rs)) return;
@@ -177,15 +164,12 @@
         rs.s('page not found');
     }
 
-/*
-    //for (let k in s) { if (!k.match(/^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}/)) console.log(k); }
- */
+    //await s.dumpToDisc()
+    //s.l(s.artistList.slice(900, 1000));
+
     //s.server.close(() => console.log('httpServer stop')); s.server.closeAllConnections();
     //s.server.listen(8080, () => console.log(`httpServer start port: 8080`));
-
     //if (procNodeId) { console.log(`procNodeId: ${procNodeId}`); await f(procNodeId); return; }
-    s.l(new Date());
-
     //const netNodesLogic = await f('f877c6d7-e52a-48fb-b6f7-cf53c9181cc1');
     //await netNodesLogic(netNodeId);
 })();
