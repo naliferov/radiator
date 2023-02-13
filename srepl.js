@@ -2,8 +2,7 @@
 
     if (typeof window !== 'undefined') {
         globalThis.s = await (await fetch('/s')).json();
-        globalThis.f = async (id) => s.execJS.__js__(id);
-        if (s.execJS && s.execJS.js) s.execJS.__js__ = eval(s.execJS.js);
+        if (s.f.js) globalThis.f = eval(s.f.js);
         (new (await f('d75b3ec3-7f79-4749-b393-757c1836a03e'))).run();
         return;
     }
@@ -15,14 +14,15 @@
     }
     s.l = console.log;
     s.dumpSkip = new Set([
-        'connectedRS', 'dumpToDisc', 'dumpCreate', 'dumping', 'dumpSkip', 'f', 'nodeProcess', 'nodeFS', 'nodeHttp',
+        'connectedRS', 'dumpToDisc', 'dumpCreate', 'dumping', 'dumpSkip', 'nodeProcess', 'nodeFS', 'nodeHttp',
+        'isMainNode',
         'l', 'loadStateFromFS', 'loadStateDone', 'loop', 'loopDelay', 'loopStart', 'loopRestart', 'loopBreak',
-        'once', 'onceDB', 'replFile',  'scriptsChangeSlicer', 'server', 'updateIds', 'uuidREGEX',
+        'once', 'onceDB', 'replFile',  'scriptsChangeSlicer', 'server', 'updateIds'
     ]);
-    s.uuidREGEX = /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}/;
     s.updateIds ??= {};
     s.connectedRS ??= {};
     s.isMainNode = 1;
+    s.isUUID = str => str.match(/^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}/);
 
     if (s['94a91287-7149-4bbd-9fef-1f1d68f65d70']) {
         s.httpClient = new (await s.f('94a91287-7149-4bbd-9fef-1f1d68f65d70'));
@@ -33,13 +33,19 @@
         s.os = await s.f('a4bc6fd6-649f-4709-8a74-d58523418c29');
     }
 
+    //s['9f0e6908-4f44-49d1-8c8e-10e1b0128858'].name = 'fs';
+    //s.dumpToDisc();
+
+    //s.l(s.somePrimitive);
+    //s.somePrimitive = true;
+
     s.dumpCreate = () => {
         const dump = {};
         for (let k in s) {
             if (s.dumpSkip.has(k)) continue;
             const v = s[k]; const t = typeof v;
 
-            if (k.match(s.uuidREGEX)) dump[k] = v;
+            if (s.isUUID(k)) dump[k] = v;
             else {
                 if (t === 'function') {
                     dump[k] = {js: v.toString()}; console.log(k);
@@ -56,7 +62,7 @@
             s.l('memory dump', new Date);
             const dump = s.dumpCreate();
             if (s.loadStateDone) {
-                await s.nodeFS.writeFile('./state/state.json', JSON.stringify(dump));
+                await s.nodeFS.writeFile('state.json', JSON.stringify(dump));
             } else {
                 s.l('dump dry run');
             }
@@ -66,11 +72,11 @@
     }
     s.loadStateFromFS = async () => {
         s.l('loadStateFromFS');
-        const state = JSON.parse(await s.nodeFS.readFile('state/state.json', 'utf8'));
+        const state = JSON.parse(await s.nodeFS.readFile('state.json', 'utf8'));
 
         for (let k in state) {
             const v = state[k]; const vType = typeof v;
-            if (k.match(s.uuidREGEX)) {
+            if (s.isUUID(k)) {
                 s[k] = v;
             } else if (vType === 'object') {
                 if (!Array.isArray(v) && v !== null && v.js) s[k] = eval(v.js);
@@ -82,12 +88,13 @@
         s.loadStateDone = 1;
         s.l('s count', 'fs s', Object.keys(state).length, 'total s', Object.keys(s).length);
     }
-    s.execJS = id => {
+    s.f = (id, args) => {
         const n = s[id]; if (!n) { console.error(`node not found by id [${id}]`); return; }
-        try { return eval(n.js)(); }
+        try {
+            return Array.isArray(args) ? eval(n.js)(...args) : eval(n.js)();
+        }
         catch (e) { console.log(n.id); console.error(e); }
-    }
-    s.f = s.execJS;
+    };
     s.fsChangesSlicer = async (path) => {
         return {
             isStarted: false,
@@ -102,9 +109,9 @@
             stop: function () { this.ac.abort(); }
         }
     }
-    if (s.once(38)) {
+    if (s.once(40)) {
         console.log('ONCE', new Date);
-        //await s.loadStateFromFS();
+        await s.loadStateFromFS();
         //await s.dumpToDisc();
         if (!s.scriptsChangeSlicer) {
             s.scriptsChangeSlicer = await s.fsChangesSlicer('scripts');
@@ -112,8 +119,8 @@
         }
         s.scriptsChangeSlicer.slicer = async (e) => {
             if (e.eventType !== 'change') return;
-            const nodeId = e.filename.slice(0, -3);
-            const node = s[nodeId];
+            const id = e.filename.slice(0, -3);
+            const node = s[id];
             if (!node) return;
             console.log('updateFromFS', node.id, node.name);
             const newJS = await s.fs.readFile('scripts/' + e.filename, 'utf8');
@@ -122,10 +129,14 @@
             catch (e) { s.log.error(e.toString(), e.stack); }
         }
     }
-    //s.l(s.artistList.slice(700, 800));
+    //s.l(s.artistList.slice(1000, 1100));
+    //s['4b60621c-e75a-444a-a36e-f22e7183fc97'].name = 'httpSlicer1';
+    //s.dumpToDisc();
+    //console.log(s.httpSlicer2);
+
+    //s.l(s.parseRqBody.toString());
 
     s.httpSlicer = async (rq, rs) => {
-
         //todo //if (!rs.isLongRequest && !rs.writableEnded) rs.s('rs end');
         const mainSlicer = await s.f('4b60621c-e75a-444a-a36e-f22e7183fc97');
         const next = await mainSlicer({
@@ -164,8 +175,10 @@
         rs.s('page not found');
     }
 
-    //await s.dumpToDisc()
-    //s.l(s.artistList.slice(900, 1000));
+    /*s.artistList.forEach(i => {
+       if (i.startsWith('al')) {
+       }
+    });*/
 
     //s.server.close(() => console.log('httpServer stop')); s.server.closeAllConnections();
     //s.server.listen(8080, () => console.log(`httpServer start port: 8080`));
