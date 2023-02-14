@@ -11,6 +11,7 @@ globalThis.s ??= {};
         return;
     }
 
+    if (!s.netId) s.netId = await s.nodeFS.readFile('netId', 'utf8');
     s.nodeProcess = (await import('node:process')).default;
     s.nodeFS = (await import('node:fs')).promises;
     s.loopDelay = 2000;
@@ -39,9 +40,9 @@ globalThis.s ??= {};
     }
     s.l = console.log;
     s.dumpSkip = new Set([
-        'connectedRS', 'dumpToDisc', 'dumpCreate', 'dumping', 'dumpSkip', 'nodeProcess', 'nodeFS', 'nodeHttp',
-        'isMainNode',
-        'l', 'loadStateFromFS', 'loadStateDone', 'loop', 'loopDelay', 'loopRunning', 'loopRestart', 'loopBreak',
+        'connectedRS', 'dumpToDisc', 'dumpCreate', 'dumping', 'dumpSkip', 'nodeDownloading', 'nodeFS', 'nodeProcess', 'nodeExtraction',
+        'nodeHttp', 'isMainNode', 'l', 'loadStateFromFS', 'loadStateDone', 'log',
+        'loop', 'loopDelay', 'loopRunning', 'loopRestart', 'loopBreak',
         'once', 'onceDB', 'replFile',  'scriptsChangeSlicer', 'server', 'updateIds'
     ]);
 
@@ -123,7 +124,7 @@ globalThis.s ??= {};
             stop: function () { this.ac.abort(); }
         }
     }
-    if (s.once(41)) {
+    if (s.once(42)) {
         console.log('ONCE', new Date);
         await s.loadStateFromFS();
         //await s.dumpToDisc();
@@ -142,7 +143,6 @@ globalThis.s ??= {};
             try { eval(newJS); node.js = newJS; s.dumpToDisc(); }
             catch (e) { s.log.error(e.toString(), e.stack); }
         }
-
         s.server.listen(8080, () => console.log(`httpServer start port: 8080`));
     }
     //s.l(s.artistList.slice(1000, 1100));
@@ -151,6 +151,8 @@ globalThis.s ??= {};
     //console.log(s.httpSlicer2);
 
     //s.l(s.parseRqBody.toString());
+
+    //s.clone
 
     s.httpSlicer = async (rq, rs) => {
         //todo //if (!rs.isLongRequest && !rs.writableEnded) rs.s('rs end');
@@ -191,9 +193,23 @@ globalThis.s ??= {};
         rs.s('page not found');
     }
 
+    //if (typeof crypto !== 'undefined') console.log(crypto.randomUUID());
+
     //s.server.close(() => console.log('httpServer stop')); s.server.closeAllConnections();
     //s.server.listen(8080, () => console.log(`httpServer start port: 8080`));
     //if (procNodeId) { console.log(`procNodeId: ${procNodeId}`); await f(procNodeId); return; }
-    //const netNodesLogic = await f('f877c6d7-e52a-48fb-b6f7-cf53c9181cc1');
-    //await netNodesLogic(netNodeId);
+
+    //delete s.netNodeId;
+
+    // for (let k in s) {
+    //     if (s.isUUID(k)) {
+    //         continue;
+    //     }
+    //
+    //     console.log(k);
+    // }
+    // console.log('sep');
+
+    const netLogic = await s.f('f877c6d7-e52a-48fb-b6f7-cf53c9181cc1');
+    await netLogic(s.netId);
 })();
