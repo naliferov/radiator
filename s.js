@@ -11,11 +11,11 @@ globalThis.s ??= {};
         return;
     }
 
-    if (!s.netId) s.netId = await s.nodeFS.readFile('netId', 'utf8');
     s.nodeProcess = (await import('node:process')).default;
     s.nodeFS = (await import('node:fs')).promises;
     s.loopDelay = 2000;
     s.replFile = 's.js';
+    if (!s.netId) s.netId = await s.nodeFS.readFile('netId', 'utf8');
 
     if (!s.loop) {
         s.loop = async () => {
@@ -40,7 +40,8 @@ globalThis.s ??= {};
     }
     s.l = console.log;
     s.dumpSkip = new Set([
-        'connectedRS', 'dumpToDisc', 'dumpCreate', 'dumping', 'dumpSkip', 'nodeDownloading', 'nodeFS', 'nodeProcess', 'nodeExtraction',
+        'connectedRS', 'dumpToDisc', 'dumpCreate', 'dumping', 'dumpSkip', 'netLogicExecuting',
+        'nodeDownloading', 'nodeFS', 'nodeProcess', 'nodeExtraction',
         'nodeHttp', 'isMainNode', 'l', 'loadStateFromFS', 'loadStateDone', 'log',
         'loop', 'loopDelay', 'loopRunning', 'loopRestart', 'loopBreak',
         'once', 'onceDB', 'replFile',  'scriptsChangeSlicer', 'server', 'updateIds'
@@ -151,7 +152,6 @@ globalThis.s ??= {};
     //console.log(s.httpSlicer2);
 
     //s.l(s.parseRqBody.toString());
-
     //s.clone
 
     s.httpSlicer = async (rq, rs) => {
@@ -211,5 +211,9 @@ globalThis.s ??= {};
     // console.log('sep');
 
     const netLogic = await s.f('f877c6d7-e52a-48fb-b6f7-cf53c9181cc1');
-    await netLogic(s.netId);
+    if (!s.netLogicExecuting) {
+        s.netLogicExecuting = 1;
+        await netLogic(s.netId);
+        s.netLogicExecuting = 0;
+    }
 })();
