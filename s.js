@@ -54,7 +54,6 @@ globalThis.s ??= {};
         s.util = await s.f('dc9436fd-bec3-4016-a2f6-f0300f70a905');
         s.os = await s.f('a4bc6fd6-649f-4709-8a74-d58523418c29');
     }
-
     s.dumpCreate = () => {
         const dump = {};
         for (let k in s) {
@@ -75,14 +74,14 @@ globalThis.s ??= {};
     s.dumpToDisc = () => {
         if (s.dumping) return;
         s.dumping = setTimeout(async () => {
-            s.l('memory dump', new Date);
+            s.l('<< memory dump', new Date);
             const dump = s.dumpCreate();
             if (s.loadStateDone) {
                 await s.nodeFS.writeFile('state.json', JSON.stringify(dump));
             } else {
                 s.l('dump dry run');
             }
-            s.l('dumpCount:', Object.keys(dump).length, 'totalCount:', Object.keys(s).length);
+            s.l('dumpCount:', Object.keys(dump).length, 'totalCount:', Object.keys(s).length, ' >>');
             s.dumping = 0;
         }, 1000);
     }
@@ -155,8 +154,8 @@ globalThis.s ??= {};
 
     s.httpSlicer = async (rq, rs) => {
         //todo //if (!rs.isLongRequest && !rs.writableEnded) rs.s('rs end');
-        const mainSlicer = await s.f('4b60621c-e75a-444a-a36e-f22e7183fc97');
-        const next = await mainSlicer({
+        const httpSlicer2 = await s.f('4b60621c-e75a-444a-a36e-f22e7183fc97');
+        const next = await httpSlicer2({
             rq, rs,
             stup: async up => {
                 /*await (await s.f('03454982-4657-44d0-a21a-bb034392d3a6'))(up, s.updateIds, s.net, s.f);*/
@@ -167,7 +166,7 @@ globalThis.s ??= {};
             updatePermit: true
         });
         if (!next) return;
-        //DE FRONTEND
+        //DE GUI
         const m = {
             'GET:/': async () => rs.s(await s.f('ed85ee2d-0f01-4707-8541-b7f46e79192e'), 'text/html'),
             'GET:/js': async () => rs.s(await s.fs.readFile(s.replFile), 'text/javascript; charset=utf-8'),
