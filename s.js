@@ -101,7 +101,7 @@ globalThis.s ??= {};
             } else s.l('unknown object type', k, v);
         }
         s.loadStateDone = 1;
-        s.l('loadStateFromFS', 'fs s', Object.keys(state).length, 'total s', Object.keys(s).length);
+        s.l('loadStateFromFS', 'fs: ', Object.keys(state).length, 'total: ', Object.keys(s).length);
     }
     s.f = (id, args) => {
         const n = s[id]; if (!n) { console.error(`node not found by id [${id}]`); return; }
@@ -124,7 +124,7 @@ globalThis.s ??= {};
             stop: function () { this.ac.abort(); }
         }
     }
-    if (s.once(2)) {
+    if (s.once(3)) {
         console.log('ONCE', new Date);
         await s.loadStateFromFS();
         //await s.dumpToDisc();
@@ -177,7 +177,7 @@ globalThis.s ??= {};
                 if (node && node.js) rs.s(node.js, 'text/javascript; charset=utf-8');
                 else rs.s('script not found');
             },
-            'GET:/consoleMonitor': () => {
+            'GET:/log': () => {
                 s.log.info('SSE connected');
                 s.connectedRS = rs;
                 rs.writeHead(200, {'Content-Type': 'text/event-stream', 'Connection': 'keep-alive', 'Cache-Control': 'no-cache'});
@@ -209,10 +209,12 @@ globalThis.s ??= {};
     // }
     // console.log('sep');
 
-    const netLogic = await s.f('f877c6d7-e52a-48fb-b6f7-cf53c9181cc1');
-    if (!s.netLogicExecuting) {
-        s.netLogicExecuting = 1;
-        await netLogic(s.netId);
-        s.netLogicExecuting = 0;
+    if (s.loadStateDone) {
+        const netLogic = await s.f('f877c6d7-e52a-48fb-b6f7-cf53c9181cc1');
+        if (!s.netLogicExecuting) {
+            s.netLogicExecuting = 1;
+            await netLogic(s.netId);
+            s.netLogicExecuting = 0;
+        }
     }
 })();
