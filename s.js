@@ -16,7 +16,6 @@ globalThis.s ??= {};
     s.loopDelay = 2000;
     s.replFile = 's.js';
     if (!s.netId) s.netId = await s.nodeFS.readFile('netId', 'utf8');
-
     if (!s.loop) {
         s.loop = async () => {
             while (1) {
@@ -31,7 +30,7 @@ globalThis.s ??= {};
 
     s.onceDB ??= {}; s.once = id => s.onceDB[id] ? 0 : s.onceDB[id] = 1;
     s.updateIds ??= {};
-    s.connectedRS ??= {};
+    s.connectedRS ??= 1;
     s.isMainNode = 1;
     s.isUUID = str => str.match(/^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}/);
     if (!s.server) {
@@ -65,7 +64,7 @@ globalThis.s ??= {};
             if (s.isUUID(k)) dump[k] = v;
             else {
                 if (t === 'function') {
-                    dump[k] = {js: v.toString()}; console.log(k);
+                    dump[k] = {js: v.toString()};
                 } else if (t === 'object' || t === 'boolean' || t === 'string' || t === 'number') {
                     dump[k] = v;
                 } else s.l('unknown object type', t, k, v);
@@ -125,7 +124,7 @@ globalThis.s ??= {};
             stop: function () { this.ac.abort(); }
         }
     }
-    if (s.once(42)) {
+    if (s.once(2)) {
         console.log('ONCE', new Date);
         await s.loadStateFromFS();
         //await s.dumpToDisc();
