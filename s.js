@@ -11,6 +11,9 @@ globalThis.s ??= {};
         return;
     }
 
+    //s.l(s.util);
+    //delete s['dc9436fd-bec3-4016-a2f6-f0300f70a905']
+
     s.nodeProcess = (await import('node:process')).default;
     s.nodeFS = (await import('node:fs')).promises;
     s.loopDelay = 2000;
@@ -30,7 +33,7 @@ globalThis.s ??= {};
 
     s.onceDB ??= {}; s.once = id => s.onceDB[id] ? 0 : s.onceDB[id] = 1;
     s.updateIds ??= {};
-    s.connectedRS ??= 1;
+    s.connectedRS ??= {};
     s.isMainNode = 1;
     s.isUUID = str => str.match(/^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}/);
     if (!s.server) {
@@ -51,9 +54,18 @@ globalThis.s ??= {};
         s.logger = await s.f('20cb8896-bdf4-4538-a471-79fb684ffb86');
         s.log = new s.logger;
         s.fs = new (await s.f('9f0e6908-4f44-49d1-8c8e-10e1b0128858'))(s.log);
-        s.util = await s.f('dc9436fd-bec3-4016-a2f6-f0300f70a905');
+        //s.util = await s.f('dc9436fd-bec3-4016-a2f6-f0300f70a905');
         s.os = await s.f('a4bc6fd6-649f-4709-8a74-d58523418c29');
     }
+
+    //delete s['dc9436fd-bec3-4016-a2f6-f0300f70a905'];
+    //s.cloneObject = s.util.cloneObject
+    //s.l(s.util);
+    // s.getTimeStr = s.util.getTimeStr;
+    // s.parseCliArgs = s.util.parseCliArgs;
+    // s.unixTs = s.util.unixTs;
+    //s.l(s.getTimeStr, s.parseCliArgs, s.unixTs);
+
     s.dumpCreate = () => {
         const dump = {};
         for (let k in s) {
@@ -109,20 +121,6 @@ globalThis.s ??= {};
         }
         catch (e) { console.log(n.id); console.error(e); }
     };
-    s.fsChangesSlicer = async (path) => {
-        return {
-            isStarted: false,
-            ac: new AbortController,
-            start: async function () {
-                if (this.isStarted) return;
-                this.generator = await s.nodeFS.watch(path, {signal: this.ac.signal});
-                for await (const e of this.generator) if (this.slicer) await this.slicer(e);
-                s.l('s.fsChangesSlicer STARTED');
-                this.isStarted = true;
-            },
-            stop: function () { this.ac.abort(); }
-        }
-    }
     if (s.once(3)) {
         console.log('ONCE', new Date);
         await s.loadStateFromFS();
@@ -152,20 +150,42 @@ globalThis.s ??= {};
     //s.l(s.parseRqBody.toString());
     //s.clone
 
+    s.netUpdate = async up => {
+
+        /*await (await s.f('03454982-4657-44d0-a21a-bb034392d3a6'))(up, s.updateIds, s.net, s.f);*/
+        //     // if (s.isMainNode && up.m === '/k' && up.k === 'js' && up.v) {
+        //     //     await s.fs.writeFile(`scripts/${up.nodeId}.js`, up.v);
+        //     // }
+
+        const del = (id) => setTimeout(() => delete s.updateIds[id], 20000);
+
+        let updateId = up.updateId;
+        if (updateId) {
+            if (updateIds[updateId]) { console.log(`already updated [${updateId}]`); return; }
+            updateIds[updateId] = 1;
+            //console.log('update receive');
+            del(updateId);
+        } else {
+            const newUpdateId = (await f('dc9436fd-bec3-4016-a2f6-f0300f70a905')).uuid();
+            updateIds[newUpdateId] = 1;
+            up.updateId = newUpdateId;
+            del(newUpdateId);
+        }
+
+        //dumpToDisc if needed
+        //if (triggerDump) triggerDump();
+
+        for (let name in netProcs) {
+            try { await netProcs[name].post(up.m, up); }
+            catch (e) { console.log('stup error: ', name, up.m, e); }
+        }
+    }
+
     s.httpSlicer = async (rq, rs) => {
-        //todo //if (!rs.isLongRequest && !rs.writableEnded) rs.s('rs end');
         const httpSlicer2 = await s.f('4b60621c-e75a-444a-a36e-f22e7183fc97');
-        const next = await httpSlicer2({
-            rq, rs,
-            stup: async up => {
-                /*await (await s.f('03454982-4657-44d0-a21a-bb034392d3a6'))(up, s.updateIds, s.net, s.f);*/
-                // if (s.isMainNode && up.m === '/k' && up.k === 'js' && up.v) {
-                //     await s.fs.writeFile(`scripts/${up.nodeId}.js`, up.v);
-                // }
-            },
-            updatePermit: true
-        });
+        const next = await httpSlicer2({rq, rs, updatePermit: true});
         if (!next) return;
+
         //DE GUI
         const m = {
             'GET:/': async () => rs.s(await s.f('ed85ee2d-0f01-4707-8541-b7f46e79192e'), 'text/html'),
@@ -180,16 +200,22 @@ globalThis.s ??= {};
                 s.log.info('SSE connected');
                 s.connectedRS = rs;
                 rs.writeHead(200, {'Content-Type': 'text/event-stream', 'Connection': 'keep-alive', 'Cache-Control': 'no-cache'});
-                rs.write(`data: EventSource connected \n\n`);
+                rs.write(`data: ES connected \n\n`);
                 rq.on('close', () => { s.connectedRS = 0; s.log.info('SSE closed'); });
             },
         }
+
         //if (s.isMainNode) m['POST:/unknown'] = async () => await s.fs.writeFile(selfId, (await parseRqBody(rq)).js);
 
         if (await s.resolveStatic(rq, rs)) return;
         if (m[rq.mp]) { await m[rq.mp](); return; }
+
+        //todo //if (!rs.isLongRequest && !rs.writableEnded) rs.s('rs end');
+
         rs.s('page not found');
     }
+
+    //s.l(s.uuid());
 
     //if (typeof crypto !== 'undefined') console.log(crypto.randomUUID());
 
