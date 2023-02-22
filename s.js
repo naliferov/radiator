@@ -44,7 +44,7 @@ globalThis.s ??= {};
     s.l = console.log;
     s.dumpSkip = new Set([
         'connectedRS', 'dumpToDisc', 'dumpCreate', 'dumping', 'dumpSkip', 'netLogicExecuting',
-        'nodeDownloading', 'nodeFS', 'nodeProcess', 'nodeExtraction',
+        'nodeDownloading', 'nodeFS', 'process', 'nodeExtraction',
         'nodeHttp', 'isMainNode', 'l', 'loadStateFromFS', 'loadStateDone', 'log',
         'loop', 'loopDelay', 'loopRunning', 'loopRestart', 'loopBreak',
         'once', 'onceDB', 'replFile',  'scriptsChangeSlicer', 'server', 'updateIds'
@@ -81,6 +81,12 @@ globalThis.s ??= {};
                     dump[k] = v;
                 } else s.l('unknown object type', t, k, v);
             }
+            // try {
+            //     JSON.stringify(dump[k]);
+            // } catch (e) {
+            //     s.l('cant json stringify value', k);
+            //     throw new Error('fuck dumpCreate error');
+            // }
         }
         return dump;
     }
@@ -91,7 +97,7 @@ globalThis.s ??= {};
             s.l('<< memory dump', new Date);
             const dump = s.dumpCreate();
             if (s.loadStateDone) {
-                await s.nodeFS.writeFile('state.json', JSON.stringify(dump));
+                await s.nodeFS.writeFile('s.json', JSON.stringify(dump));
             } else {
                 s.l('dump dry run');
             }
@@ -100,7 +106,7 @@ globalThis.s ??= {};
         }, 1000);
     }
     s.loadStateFromFS = async () => {
-        const state = JSON.parse(await s.nodeFS.readFile('state.json', 'utf8'));
+        const state = JSON.parse(await s.nodeFS.readFile('s.json', 'utf8'));
 
         for (let k in state) {
             const v = state[k]; const vType = typeof v;
