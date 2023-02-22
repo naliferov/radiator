@@ -11,9 +11,6 @@ globalThis.s ??= {};
         return;
     }
 
-    //s.l(s.util);
-    //delete s['dc9436fd-bec3-4016-a2f6-f0300f70a905']
-
     s.nodeProcess = (await import('node:process')).default;
     s.nodeFS = (await import('node:fs')).promises;
     s.loopDelay = 2000;
@@ -83,6 +80,7 @@ globalThis.s ??= {};
         }
         return dump;
     }
+
     s.dumpToDisc = () => {
         if (s.dumping) return;
         s.dumping = setTimeout(async () => {
@@ -196,7 +194,7 @@ globalThis.s ??= {};
                 if (node && node.js) rs.s(node.js, 'text/javascript; charset=utf-8');
                 else rs.s('script not found');
             },
-            'GET:/log': () => {
+            'GET:/event-stream': () => {
                 s.log.info('SSE connected');
                 s.connectedRS = rs;
                 rs.writeHead(200, {'Content-Type': 'text/event-stream', 'Connection': 'keep-alive', 'Cache-Control': 'no-cache'});

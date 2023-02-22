@@ -7,4 +7,5 @@ node-v*-linux-x64
 node*.tar.xz
 font.zip
 state.zip
+state.json
 s.log
