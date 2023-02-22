@@ -11,20 +11,24 @@ globalThis.s ??= {};
         return;
     }
 
-    s.nodeProcess = (await import('node:process')).default;
+    s.process = (await import('node:process')).default;
     s.nodeFS = (await import('node:fs')).promises;
     s.loopDelay = 2000;
     s.replFile = 's.js';
-    if (!s.netId) s.netId = await s.nodeFS.readFile('netId', 'utf8');
+    if (!s.netId) s.netId = 'main';
     if (!s.loop) {
         s.loop = async () => {
             while (1) {
                 await new Promise(r => setTimeout(r, s.loopDelay));
-                try { eval(await s.nodeFS.readFile(s.replFile, 'utf8')); }
+                try {
+                    const js = await s.nodeFS.readFile(s.replFile, 'utf8');
+                    eval(js);
+                    s['js'] = js;
+                }
                 catch (e) { console.log(e); }
             }
         };
-        s.nodeProcess.on('uncaughtException', e => console.error('[[uncaughtException]]', e));
+        s.process.on('uncaughtException', e => console.error('[[uncaughtException]]', e));
     }
     if (!s.loopRunning) { s.loop(); s.loopRunning = 1; }
 
@@ -181,19 +185,10 @@ globalThis.s ??= {};
 
     s.httpSlicer = async (rq, rs) => {
         const httpSlicer2 = await s.f('4b60621c-e75a-444a-a36e-f22e7183fc97');
-        const next = await httpSlicer2({rq, rs, updatePermit: true});
-        if (!next) return;
-
-        //DE GUI
+        const next = await httpSlicer2({rq, rs, updatePermit: true}); if (!next) return;
+        //GUI
         const m = {
             'GET:/': async () => rs.s(await s.f('ed85ee2d-0f01-4707-8541-b7f46e79192e'), 'text/html'),
-            'GET:/js': async () => rs.s(await s.fs.readFile(s.replFile), 'text/javascript; charset=utf-8'),
-            'GET:/node': () => {
-                if (!rq.query.id) { rs.s('id is empty'); return; }
-                const node = g(rq.query.id);
-                if (node && node.js) rs.s(node.js, 'text/javascript; charset=utf-8');
-                else rs.s('script not found');
-            },
             'GET:/event-stream': () => {
                 s.log.info('SSE connected');
                 s.connectedRS = rs;
@@ -202,32 +197,22 @@ globalThis.s ??= {};
                 rq.on('close', () => { s.connectedRS = 0; s.log.info('SSE closed'); });
             },
         }
-
-        //if (s.isMainNode) m['POST:/unknown'] = async () => await s.fs.writeFile(selfId, (await parseRqBody(rq)).js);
-
         if (await s.resolveStatic(rq, rs)) return;
         if (m[rq.mp]) { await m[rq.mp](); return; }
-
         //todo //if (!rs.isLongRequest && !rs.writableEnded) rs.s('rs end');
-
         rs.s('page not found');
     }
 
     //s.l(s.uuid());
-
     //if (typeof crypto !== 'undefined') console.log(crypto.randomUUID());
 
     //s.server.close(() => console.log('httpServer stop')); s.server.closeAllConnections();
     //s.server.listen(8080, () => console.log(`httpServer start port: 8080`));
     //if (procNodeId) { console.log(`procNodeId: ${procNodeId}`); await f(procNodeId); return; }
 
-    //delete s.netNodeId;
-
     // for (let k in s) {
     //     if (s.isUUID(k)) {
     //         continue;
-    //     }
-    //
     //     console.log(k);
     // }
     // console.log('sep');
