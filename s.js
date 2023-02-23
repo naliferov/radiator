@@ -6,6 +6,9 @@ globalThis.s ??= {};
 
     if (typeof window !== 'undefined') {
         s = await (await fetch('/s')).json();
+        s.proxy = {};
+        s = new Proxy(s, s.proxy);
+
         if (s.f.js) globalThis.f = eval(s.f.js);
         (new (await f('d75b3ec3-7f79-4749-b393-757c1836a03e'))).run();
         return;
@@ -23,7 +26,7 @@ globalThis.s ??= {};
                 try {
                     const js = await s.nodeFS.readFile(s.replFile, 'utf8');
                     eval(js);
-                    s['js'] = js;
+                    s.js = js;
                 }
                 catch (e) { console.log(e); }
             }
@@ -59,6 +62,7 @@ globalThis.s ??= {};
         s.os = await s.f('a4bc6fd6-649f-4709-8a74-d58523418c29');
     }
 
+    //s.l(s.watchScripts.toString());
     //delete s['dc9436fd-bec3-4016-a2f6-f0300f70a905'];
     //s.cloneObject = s.util.cloneObject
     //s.l(s.util);
@@ -90,7 +94,6 @@ globalThis.s ??= {};
         }
         return dump;
     }
-
     s.dumpToDisc = () => {
         if (s.dumping) return;
         s.dumping = setTimeout(async () => {
@@ -188,10 +191,9 @@ globalThis.s ??= {};
             catch (e) { console.log('stup error: ', name, up.m, e); }
         }
     }
-
     s.httpSlicer = async (rq, rs) => {
         const httpSlicer2 = await s.f('4b60621c-e75a-444a-a36e-f22e7183fc97');
-        const next = await httpSlicer2({rq, rs, updatePermit: true}); if (!next) return;
+        const next = await httpSlicer2({rq, rs}); if (!next) return;
         //GUI
         const m = {
             'GET:/': async () => rs.s(await s.f('ed85ee2d-0f01-4707-8541-b7f46e79192e'), 'text/html'),
