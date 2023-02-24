@@ -4,6 +4,8 @@ globalThis.s ??= {};
 
 (async () => {
 
+    //s.l(Object.getOwnPropertyNames(globalThis).forEach(i => s.l(i)));
+
     if (typeof window !== 'undefined') {
         s = await (await fetch('/s')).json();
         s.proxy = {};
@@ -35,10 +37,10 @@ globalThis.s ??= {};
     }
     if (!s.loopRunning) { s.loop(); s.loopRunning = 1; }
 
+    s.isMainNode = 1;
     s.onceDB ??= {}; s.once = id => s.onceDB[id] ? 0 : s.onceDB[id] = 1;
     s.updateIds ??= {};
     s.connectedRS ??= {};
-    s.isMainNode = 1;
     s.isUUID = str => str.match(/^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}/);
     if (!s.server) {
         s.nodeHttp = await import('node:http');
