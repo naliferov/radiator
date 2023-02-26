@@ -4,10 +4,14 @@ globalThis.s ??= {};
 
 (async () => {
 
+    //s.l(s.net);
     // s.server.close(() => {
     //     s.l('httpServer stop'); s.server.closeAllConnections();
     // });
     //s.server.listen(8080, () => console.log(`httpServer start port: 8080`));
+    s.def = (k, v) => {
+        Object.defineProperty(s, k, {writable: true, configurable: true, enumerable: false, value: v});
+    }
 
     if (typeof window !== 'undefined') {
         s = await (await fetch('/s')).json();
@@ -19,14 +23,15 @@ globalThis.s ??= {};
         return;
     }
 
-    s.process = (await import('node:process')).default;
-    s.nodeFS = (await import('node:fs')).promises;
-    s.fsAccess = async path => { try { await s.nodeFS.access(path); return true; } catch { return false; } }
-    s.loopDelay = 2000;
-    s.replFile = 's.js';
-    if (!s.netId) s.netId = 'main';
+    s.def('process', (await import('node:process')).default);
+    s.def('nodeFS', (await import('node:fs')).promises);
+    s.def('fsAccess', async path => { try { await s.nodeFS.access(path); return true; } catch { return false; } });
+    s.def('replFile', 's.js');
+
+    //s.l(s.process.pid);
+
     if (!s.loop) {
-        s.loop = async () => {
+        s.def('loop', async () => {
             while (1) {
                 await new Promise(r => setTimeout(r, s.loopDelay));
                 try {
@@ -36,10 +41,10 @@ globalThis.s ??= {};
                 }
                 catch (e) { console.log(e); }
             }
-        };
+        });
         s.process.on('uncaughtException', e => console.error('[[uncaughtException]]', e));
     }
-    if (!s.loopRunning) { s.loop(); s.loopRunning = 1; }
+    if (!s.loopRunning) { s.loop(); s.def('loopRunning', 1); }
     s.stop = () => { s.l('stop process ', s.process.pid); s.process.exit(0); }
 
     s.onceDB ??= {}; s.once = id => s.onceDB[id] ? 0 : s.onceDB[id] = 1;
@@ -54,12 +59,13 @@ globalThis.s ??= {};
         catch (e) { console.log(n.id); console.error(e); }
     }
     s.dumpSkip = new Set([
-        'connectedRS', 'connectedSSERequests', 'dumpToDisc', 'dumpCreate', 'dumping', 'dumpSkip', 'netId', 'netLogicExecuting',
-        'nodeDownloading', 'nodeFS', 'process', 'nodeExtraction',
+        'connectedSSERequests', 'def', 'dumpToDisc', 'dumpCreate', 'dumping', 'dumpSkip',
+        'netId', 'netLogicExecuting', 'nodeDownloading', 'nodeExtraction',
         'nodeHttp', 'l', 'loadStateFromFS', 'loadStateDone', 'log',
-        'loop', 'loopDelay', 'loopRunning', 'loopRestart', 'loopBreak',
-        'once', 'onceDB', 'replFile',  'scriptsChangeSlicer', 'server', 'updateIds'
+        'loop', 'loopRunning', 'loopRestart', 'loopBreak',
+        'once', 'onceDB', 'scriptsChangeSlicer', 'server', 'updateIds'
     ]);
+
     s.dumpCreate = () => {
         const dump = {};
         for (let k in s) {
@@ -67,8 +73,10 @@ globalThis.s ??= {};
             const v = s[k];
             const t = typeof v;
 
+
             if (s.isUUID(k)) dump[k] = v;
             else {
+
                 if (t === 'function') {
                     dump[k] = {js: v.toString()};
                 } else if (t === 'object' || t === 'boolean' || t === 'string' || t === 'number') {
@@ -111,7 +119,7 @@ globalThis.s ??= {};
         s.l('loadStateFromFS', 'fs: ', Object.keys(state).length, 'total: ', Object.keys(s).length);
     }
     if (s['94a91287-7149-4bbd-9fef-1f1d68f65d70']) {
-        //s.httpClient = new (await s.f('94a91287-7149-4bbd-9fef-1f1d68f65d70'));
+        s.httpClient = new (await s.f('94a91287-7149-4bbd-9fef-1f1d68f65d70'));
         s.logger = await s.f('20cb8896-bdf4-4538-a471-79fb684ffb86');
         s.log = new s.logger;
         s.fs = new (await s.f('9f0e6908-4f44-49d1-8c8e-10e1b0128858'))(s.log);
@@ -154,9 +162,84 @@ globalThis.s ??= {};
             });
         });
     }
+    s.resolveRqStatic = async (rq, rs) => {
+
+        const lastPart = rq.pathname.split('/').pop();
+        const split = lastPart.split('.');
+        if (split.length < 2) return false;
+
+        const extension = split[split.length - 1]; if (!extension) return;
+        try {
+            const file = await s.nodeFS.readFile('.' + rq.pathname);
+            const m = {html: 'text/html', js: 'text/javascript', css: 'text/css', map: 'application/json', woff2: 'font/woff2', woff: 'font/woff', ttf: 'font/ttf'};
+            if (m[extension]) rs.setHeader('Content-Type', m[extension]);
+            rs.setHeader('Access-Control-Allow-Origin', '*');
+            rs.end(file);
+            return true;
+        } catch (e) {
+            if (s.log) s.log.info(e.toString(), {path: e.path, syscall: e.syscall});
+            else console.log(e);
+            return false;
+        }
+    }
+    s.httpSlicer = async (rq, rs) => {
+        const ip = rq.socket.remoteAddress;
+        const isLocal = ip === '::1' || ip === '127.0.0.1';
+        const cookie = rq.headers.cookie;
+
+        if (s.token && rq.method === 'POST') { rs.writeHead(403).end('no'); return; }
+
+        const url = (new URL('http://t.c' + rq.url));
+        rq.query = {};
+        url.searchParams.forEach((v, k) => rq.query[k] = v);
+        rq.pathname = url.pathname;
+        rs.e = code => rs.writeHead(code, {'Content-Type': 'text/plain; charset=utf-8'}).end();
+        rq.mp = `${rq.method}:${url.pathname}`;
+
+        s.l(ip, rq.mp);
+
+        rs.s = (v, contentType) => {
+            const s = (value, type) => rs.writeHead(200, {'Content-Type': type}).end(value);
+
+            if (!v) s('empty val', 'text/plain; charset=utf-8');
+            else if (v instanceof Buffer) s(v, '');
+            else if (typeof v === 'object') s(JSON.stringify(v), 'application/json');
+            else if (typeof v === 'string' || typeof v === 'number') s(v, contentType ?? 'text/plain; charset=utf-8');
+            else s('', 'text/plain');
+        }
+        if (s.httpSlicer2 && !await s.httpSlicer2({rq, rs})) return;
+
+        const m = {
+            'GET:/': async () => rs.s(await s.f('ed85ee2d-0f01-4707-8541-b7f46e79192e'), 'text/html'),
+            'GET:/ping': () => rs.s('pong'),
+            'GET:/event-stream': () => {
+                s.log.info('SSE connected');
+                //s.connectedRS = rs;
+                rs.writeHead(200, {'Content-Type': 'text/event-stream', 'Connection': 'keep-alive', 'Cache-Control': 'no-cache'});
+                rs.write(`data: ES connected \n\n`);
+                rq.on('close', () => {
+                    //s.connectedRS = 0;
+                    s.log.info('SSE closed');
+                });
+            },
+            'POST:/token': () => {
+                if (isLocal) {
+                    const {token} = s.parseRqBody(rq);
+                    if (token) s.token = token;
+                    rs.s('ok');
+                    return;
+                }
+                rs.s();
+            },
+            //GET:/fsAccess: //POST:/fsWriteFile:
+        }
+        if (s.resolveRqStatic && await s.resolveRqStatic(rq, rs)) return;
+        if (m[rq.mp]) { await m[rq.mp](); return; }
+        //todo //if (!rs.isLongRequest && !rs.writableEnded) rs.s('rs end');
+        rs.s('not found');
+    }
     s.httpSlicer2 = async ({rq, rs}) => {
         const m = {
-            'GET:/ping': () => rs.s('pong'),
             'GET:/s': async () => rs.s(s.dumpCreate()),
             'POST:/k': async () => {
                 const {kPath, v, updateId, deleteProp} = await s.parseRqBody(rq);
@@ -206,54 +289,10 @@ globalThis.s ??= {};
         if (m[rq.mp]) { await m[rq.mp](); return false; }
         return true;
     }
-    s.httpSlicer = async (rq, rs) => {
-        const isLocal = rq.socket.localAddress === '::1' || rq.socket.localAddress === '127.0.0.1';
-        const cookie = rq.headers.cookie;
 
-        if (s.token && rq.method === 'POST') { rs.writeHead(403).end('no'); return; }
+    //s.l(await s.httpClient.post('http://167.172.160.174:8080/kw', {deleteProp: 1}));
+    //s.netId = 'main'
 
-        const url = (new URL('http://t.c' + rq.url));
-        rq.query = {};
-        url.searchParams.forEach((v, k) => rq.query[k] = v);
-        rq.pathname = url.pathname;
-        rs.e = code => rs.writeHead(code, {'Content-Type': 'text/plain; charset=utf-8'}).end();
-        rq.mp = `${rq.method}:${url.pathname}`;
-        rs.s = (v, contentType) => {
-            const s = (value, type) => rs.writeHead(200, {'Content-Type': type}).end(value);
-
-            if (!v) s('null', 'text/plain; charset=utf-8');
-            else if (v instanceof Buffer) s(v, '');
-            else if (typeof v === 'object') s(JSON.stringify(v), 'application/json');
-            else if (typeof v === 'string' || typeof v === 'number') s(v, contentType ?? 'text/plain; charset=utf-8');
-            else s('', 'text/plain');
-        }
-        if (s.httpSlicer2 && !await s.httpSlicer2({rq, rs})) return;
-
-        const m = {
-            'GET:/': async () => rs.s(await s.f('ed85ee2d-0f01-4707-8541-b7f46e79192e'), 'text/html'),
-            'GET:/event-stream': () => {
-                s.log.info('SSE connected');
-                s.connectedRS = rs;
-                rs.writeHead(200, {'Content-Type': 'text/event-stream', 'Connection': 'keep-alive', 'Cache-Control': 'no-cache'});
-                rs.write(`data: ES connected \n\n`);
-                rq.on('close', () => { s.connectedRS = 0; s.log.info('SSE closed'); });
-            },
-            'POST:/token': () => {
-                if (isLocal) {
-                    const {token} = s.parseRqBody(rq);
-                    if (token) s.token = token;
-                    rs.s('ok');
-                    return;
-                }
-                rs.s();
-            },
-            //GET:/fsAccess: //POST:/fsWriteFile:
-        }
-        if (s.resolveStatic && await s.resolveStatic(rq, rs)) return;
-        if (m[rq.mp]) { await m[rq.mp](); return; }
-        //todo //if (!rs.isLongRequest && !rs.writableEnded) rs.s('rs end');
-        rs.s('page not found');
-    }
     if (!s.server) {
         s.nodeHttp = await import('node:http');
         s.server = s.nodeHttp.createServer((rq, rs) => { if (s.httpSlicer) s.httpSlicer(rq, rs); });
@@ -265,7 +304,7 @@ globalThis.s ??= {};
         }
     }
 
-    if (s.once(1)) {
+    if (s.once(2)) {
         console.log('ONCE', new Date);
 
         if (await s.fsAccess('s.json')) await s.loadStateFromFS('s.json');
@@ -284,12 +323,18 @@ globalThis.s ??= {};
                 catch (e) { s.log.error(e.toString(), e.stack); }
             }
         }
+        // if (!s.netId) {
+        //     s.serverPort(8080);
+        // }
+
         s.server.listen(8080, () => console.log(`httpServer start port: 8080`));
     }
 
+    //console.log(s.process.env)
+
     //if (procNodeId) { console.log(`procNodeId: ${procNodeId}`); await f(procNodeId); return; }
-    const netLogic = await s.f('f877c6d7-e52a-48fb-b6f7-cf53c9181cc1');
-    if (netLogic && !s.netLogicExecuting) {
+    if (s['f877c6d7-e52a-48fb-b6f7-cf53c9181cc1'] && !s.netLogicExecuting) {
+        const netLogic = await s.f('f877c6d7-e52a-48fb-b6f7-cf53c9181cc1');
         s.netLogicExecuting = 1;
         await netLogic(s.netId);
         s.netLogicExecuting = 0;
