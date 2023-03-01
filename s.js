@@ -2,15 +2,12 @@ globalThis.s ??= {};
 
 (async () => {
 
-    //s.l(s.net);
-    // s.server.close(() => {
-    //     s.l('httpServer stop'); s.server.closeAllConnections();
-    // });
-    //s.server.listen(8080, () => console.log(`httpServer start port: 8080`));
     s.def = (k, v) => {
         Object.defineProperty(s, k, {writable: true, configurable: true, enumerable: false, value: v});
     }
-
+    s.defObjectProperty = (o, k, v) => {
+        Object.defineProperty(o, k, {writable: true, configurable: true, enumerable: false, value: v});
+    }
     if (typeof window !== 'undefined') {
         s = await (await fetch('/s')).json();
         s.proxy = {};
@@ -59,7 +56,8 @@ globalThis.s ??= {};
         catch (e) { console.log(n.id); console.error(e); }
     }
     s.dumpSkip = new Set([
-        'connectedSSERequests', 'def', 'dumpToDisc', 'dumpCreate', 'dumping', 'dumpSkip',
+        'connectedSSERequests', 'def', 'defObjectProperty', 'dumpToDisc', 'dumpCreate', 'dumping', 'dumpSkip',
+        'httpSlicer',
         'netId', 'netLogicExecuting', 'nodeDownloading', 'nodeExtraction',
         'nodeHttp', 'l', 'loadStateFromFS', 'loadStateDone', 'log',
         'loop', 'loopRunning', 'loopRestart', 'loopBreak',
@@ -106,6 +104,7 @@ globalThis.s ??= {};
         s.fs = new (await s.f('9f0e6908-4f44-49d1-8c8e-10e1b0128858'))(s.log);
         s.os = await s.f('a4bc6fd6-649f-4709-8a74-d58523418c29');
     }
+
     s.stateUpdate = async state => {
         for (let k in state) {
             const v = state[k]; const vType = typeof v;
@@ -176,6 +175,7 @@ globalThis.s ??= {};
             return false;
         }
     }
+
     s.httpSlicer = async (rq, rs) => {
         const ip = rq.socket.remoteAddress;
         const isLocal = ip === '::1' || ip === '127.0.0.1';
@@ -188,10 +188,8 @@ globalThis.s ??= {};
         url.searchParams.forEach((v, k) => rq.query[k] = v);
         rq.pathname = url.pathname;
         rq.mp = `${rq.method}:${url.pathname}`;
-
         s.l(ip, rq.mp);
 
-        rs.e = code => rs.writeHead(code, {'Content-Type': 'text/plain; charset=utf-8'}).end();
         rs.s = (v, contentType) => {
             const s = (value, type) => rs.writeHead(200, {'Content-Type': type}).end(value);
 
@@ -203,8 +201,8 @@ globalThis.s ??= {};
         }
         const m = {
             'GET:/': async () => rs.s(await s.f('ed85ee2d-0f01-4707-8541-b7f46e79192e'), 'text/html'),
-            'GET:/ping': async () => {
-                if (!isLocal) { rs.s('pong'); return; }
+            'GET:/trigger': async () => {
+                if (!isLocal) { rs.s('ok'); return; }
                 if (s.trigger) s.trigger();
                 rs.s('ok');
             },
@@ -226,7 +224,9 @@ globalThis.s ??= {};
             },
             'GET:/s': async () => rs.s(s.dumpCreate()),
             'POST:/s': async () => {
-                //rs.s(s.dumpCreate())
+                const {state} = s.parseRqBody(rq);
+                s.stateUpdate(state);
+                rs.s('ok');
             },
             'POST:/k': async () => {
                 const {kPath, v, updateId, deleteProp} = await s.parseRqBody(rq);
@@ -272,30 +272,45 @@ globalThis.s ??= {};
                 rs.s('ok');
                 //if (s.netRadiate) await s.netRadiate({m: '/k', nodeId, kPath, v, deleteProp, updateId});
             },
-            //GET:/fsAccess: //POST:/fsWriteFile:
+            'GET:/fsAccess': async () => {
+                if (!rq.query.path || rq.query.path.includes('..')) { rs.s('path invalid'); return; }
+                rs.s({'access': await s.fsAccess(rq.query.path)});
+            },
+            'POST:/fsWrite': async () => {
+                if (!rq.query.path || rq.query.path.includes('..')) { rs.s('path invalid'); return; }
+                const b = await s.parseRqBody(rq);
+                if (b) await s.nodeFS.writeFile(rq.query.path, b);
+                rs.s('ok');
+            },
         }
         if (await s.resolveRqStatic(rq, rs)) return;
         if (m[rq.mp]) { await m[rq.mp](); return; }
         //todo //if (!rs.isLongRequest && !rs.writableEnded) rs.s('rs end');
         rs.s('not found');
     }
+
     //s.l(await s.httpClient.post('http://167.172.160.174:8080/kw', {deleteProp: 1}));
     if (!s.server) {
         s.nodeHttp = await import('node:http');
         s.server = s.nodeHttp.createServer((rq, rs) => { if (s.httpSlicer) s.httpSlicer(rq, rs); });
-        s.restartPort = port => {
+        s.serverRestart = port => {
             s.server.close(() => {
                 s.l('server stop'); s.server.closeAllConnections();
             });
             s.server.listen(port, () => s.l(`server start ${port}`));
         }
     }
+
     s.def('trigger', async () => {
         s.l('trigger test');
     });
 
-    if (s.once(9)) {
+    if (s.once(60)) {
         console.log('ONCE', new Date);
+
+        //const archive = await s.nodeFS.readFile('node19.6.0.tar.xz');
+        //const path = './test2.tar.xz';
+        //await s.httpClient.postBuf(`http://127.0.0.1:8080/fsWrite`, archive.buffer, {path});
 
         if (await s.fsAccess('s.json')) {
             const state = JSON.parse(await s.nodeFS.readFile('s.json', 'utf8'));
@@ -318,6 +333,11 @@ globalThis.s ??= {};
         }
         if (s.server) s.server.listen(8080, () => console.log(`httpServer start port: 8080`));
     }
+
+    //s.l(s.httpClient.post);
+    //await s.httpClient.post(`http://127.0.0.1:8080/fsWrite`, {}, {'Content-Type': 'application/x-binary'});
+    //s.stop();
+    //s.netId = 'main';
 
     //s.netLogicExecuting = 0;
     //if (procNodeId) { console.log(`procNodeId: ${procNodeId}`); await f(procNodeId); return; }
