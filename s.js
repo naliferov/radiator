@@ -1,11 +1,10 @@
 globalThis.s ??= {};
 
 (async () => {
-
     s.def = (k, v) => {
         Object.defineProperty(s, k, {writable: true, configurable: true, enumerable: false, value: v});
     }
-    s.defObjectProperty = (o, k, v) => {
+    s.defObjectProp = (o, k, v) => {
         Object.defineProperty(o, k, {writable: true, configurable: true, enumerable: false, value: v});
     }
     if (typeof window !== 'undefined') {
@@ -21,14 +20,15 @@ globalThis.s ??= {};
     s.def('process', (await import('node:process')).default);
     s.def('processStop', () => { s.l('stop process ', s.process.pid); s.process.exit(0); });
     //s.def('processRestart', () => { s.l('stop process ', s.process.pid); s.process.exit(0); });
-    if (!s.hang) {
-        s.def('hang', {interval: {}, promise: {}, ssh: {}});
-    }
     s.def('nodeFS', (await import('node:fs')).promises);
     s.def('fsAccess', async path => { try { await s.nodeFS.access(path); return true; } catch { return false; } });
+    if (!s.hang) s.def('hang', {interval: {}, promise: {}, ssh: {}});
+    if (!s.u) s.u = {};
 
     s.def('replFile', 's.js');
+    s.loopDelay = 2000;
     if (!s.loop) {
+        if (!s.loopDelay) { console.log('loop delay is not set'); return; }
         s.def('loop', async () => {
             while (1) {
                 await new Promise(r => setTimeout(r, s.loopDelay));
@@ -56,15 +56,14 @@ globalThis.s ??= {};
         catch (e) { console.log(n.id); console.error(e); }
     }
     s.dumpSkip = new Set([
-        'connectedSSERequests', 'def', 'defObjectProperty', 'dumpToDisc', 'dumpCreate', 'dumping', 'dumpSkip',
+        'connectedSSERequests', 'def', 'defObjectProperty', 'defObjectProp', 'dumpToDisc', 'dumping', 'dumpSkip',
         'httpSlicer',
         'netId', 'netLogicExecuting', 'nodeDownloading', 'nodeExtraction',
         'nodeHttp', 'l', 'loadStateFromFS', 'loadStateDone', 'log',
         'loop', 'loopRunning', 'loopRestart', 'loopBreak',
-        'once', 'onceDB', 'scriptsChangeSlicer', 'server', 'updateIds'
+        'once', 'onceDB', 'scriptsChangeSlicer', 'server', 'token', 'updateIds'
     ]);
-
-    s.dumpCreate = () => {
+    s.def('createStateDump', () => {
         const dump = {};
         for (let k in s) {
             if (s.dumpSkip.has(k)) continue;
@@ -81,12 +80,12 @@ globalThis.s ??= {};
             }
         }
         return dump;
-    }
-    s.dumpToDisc = () => {
+    });
+    s.def('dumpStateToDisc', () => {
         if (s.dumping) return;
         s.dumping = setTimeout(async () => {
             s.l('<< memory dump', new Date);
-            const dump = s.dumpCreate();
+            const dump = s.createStateDump();
             if (s.loadStateDone) {
                 await s.nodeFS.writeFile('s.json', JSON.stringify(dump));
             } else {
@@ -95,12 +94,11 @@ globalThis.s ??= {};
             s.l('dumpCount:', Object.keys(dump).length, 'totalCount:', Object.keys(s).length, ' >>');
             s.dumping = 0;
         }, 1000);
-    }
+    });
 
-    if (s['94a91287-7149-4bbd-9fef-1f1d68f65d70']) {
+    if (s.logger) {
         s.httpClient = new (await s.f('94a91287-7149-4bbd-9fef-1f1d68f65d70'));
-        s.logger = await s.f('20cb8896-bdf4-4538-a471-79fb684ffb86');
-        s.log = new s.logger;
+        s.log = new (s.logger());
         s.fs = new (await s.f('9f0e6908-4f44-49d1-8c8e-10e1b0128858'))(s.log);
         s.os = await s.f('a4bc6fd6-649f-4709-8a74-d58523418c29');
     }
@@ -175,13 +173,25 @@ globalThis.s ??= {};
             return false;
         }
     }
+    s.rqGetToken = rq => {
+        if (!rq.headers.cookie || rq.headers.cookie.length < 1) return;
 
+        const cookies = rq.headers.cookie.split(';');
+        for (let i in cookies) {
+            const cookieKV = cookies[i].trim().split('=');
+            if (cookieKV[0] === 'token' && cookieKV[1]) {
+                return cookieKV[1].trim();
+            }
+        }
+    }
     s.httpSlicer = async (rq, rs) => {
         const ip = rq.socket.remoteAddress;
         const isLocal = ip === '::1' || ip === '127.0.0.1';
-        const cookie = rq.headers.cookie;
+        const token = s.rqGetToken(rq);
 
-        if (s.token && rq.method === 'POST') { rs.writeHead(403).end('no'); return; }
+        if (s.token && rq.method === 'POST' && s.token !== token) {
+            rs.writeHead(403).end('no'); return;
+        }
 
         const url = new URL('http://t.c' + rq.url);
         rq.query = {};
@@ -216,15 +226,18 @@ globalThis.s ??= {};
                     s.log.info('SSE closed');
                 });
             },
+            'GET:/token': () => { rs.s(typeof s.token); },
             'POST:/token': () => {
-                if (!isLocal) { rs.s(); return; }
-                const {token} = s.parseRqBody(rq);
-                if (token) s.token = token;
-                rs.s('ok');
+                if (isLocal || !s.token) {
+                    const {token} = s.parseRqBody(rq);
+                    if (token) s.token = token;
+                    rs.s('ok'); return;
+                }
+                rs.s();
             },
-            'GET:/s': async () => rs.s(s.dumpCreate()),
+            'GET:/s': async () => rs.s(s.createStateDump()),
             'POST:/s': async () => {
-                const {state} = s.parseRqBody(rq);
+                const {state} = await s.parseRqBody(rq);
                 s.stateUpdate(state);
                 rs.s('ok');
             },
@@ -260,9 +273,10 @@ globalThis.s ??= {};
                         }
                         if (deleteProp) delete node[key];
                     } else {
-                        const parentNode = kNodes.at(-1);
-                        const parentKey = kPath.at(-2);
                         if (key === 'js') {
+                            const parentNode = kNodes.at(-1);
+                            const parentKey = kPath.at(-2);
+
                             if (typeof v !== 'string') { rs.s('v is not string'); return; }
                             //console.log(Object.keys(parentNode).slice(0, 5), '---', parentKey, v);
                             try { parentNode[parentKey] = eval(v); } catch (e) { console.error(e); }
@@ -294,10 +308,12 @@ globalThis.s ??= {};
         s.nodeHttp = await import('node:http');
         s.server = s.nodeHttp.createServer((rq, rs) => { if (s.httpSlicer) s.httpSlicer(rq, rs); });
         s.serverRestart = port => {
+            s.server.closeAllConnections();
             s.server.close(() => {
-                s.l('server stop'); s.server.closeAllConnections();
+                s.l('server stop');
+                s.server.closeAllConnections();
+                s.server.listen(port, () => s.l(`server start ${port}`));
             });
-            s.server.listen(port, () => s.l(`server start ${port}`));
         }
     }
 
@@ -307,10 +323,6 @@ globalThis.s ??= {};
 
     if (s.once(60)) {
         console.log('ONCE', new Date);
-
-        //const archive = await s.nodeFS.readFile('node19.6.0.tar.xz');
-        //const path = './test2.tar.xz';
-        //await s.httpClient.postBuf(`http://127.0.0.1:8080/fsWrite`, archive.buffer, {path});
 
         if (await s.fsAccess('s.json')) {
             const state = JSON.parse(await s.nodeFS.readFile('s.json', 'utf8'));
@@ -327,20 +339,29 @@ globalThis.s ??= {};
                 console.log('updateFromFS', node.id, node.name);
                 const newJS = await s.nodeFS.readFile('scripts/' + e.filename, 'utf8');
                 if (node.js === newJS) { console.log('js already updated'); return; }
-                try { eval(newJS); node.js = newJS; s.dumpToDisc(); }
-                catch (e) { s.log.error(e.toString(), e.stack); }
+                try {
+                    eval(newJS);
+                    node.js = newJS;
+                    s.dumpStateToDisc();
+                } catch (e) { s.log.error(e.toString(), e.stack); }
             }
         }
         if (s.server) s.server.listen(8080, () => console.log(`httpServer start port: 8080`));
     }
 
-    //s.l(s.httpClient.post);
-    //await s.httpClient.post(`http://127.0.0.1:8080/fsWrite`, {}, {'Content-Type': 'application/x-binary'});
-    //s.stop();
-    //s.netId = 'main';
+    const sendStateToNetNode = async () => {
+        const state = s.createStateDump();
+        const r = await s.httpClient.post(`http://167.172.160.174/s`, {state}, {
+            cookie: 'token=',
+            //cookie: 'token=abe8e32f-6266-a310-7f32-656b9856f949\n',
+        });
+        console.log(r);
+    }
 
-    //s.netLogicExecuting = 0;
-    //if (procNodeId) { console.log(`procNodeId: ${procNodeId}`); await f(procNodeId); return; }
+    //sendStateToNetNode();
+    //s.netId = 'main';
+    //s.l(await s.httpClient.post('http://167.172.160.174', {}, {}));
+
     if (s['f877c6d7-e52a-48fb-b6f7-cf53c9181cc1'] && !s.netLogicExecuting) {
 
         const netLogic = await s.f('f877c6d7-e52a-48fb-b6f7-cf53c9181cc1');
