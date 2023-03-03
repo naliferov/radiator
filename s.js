@@ -25,6 +25,9 @@ globalThis.s ??= {};
     if (!s.hang) s.def('hang', {interval: {}, promise: {}, ssh: {}});
     if (!s.u) s.u = {};
 
+    // if (!s.u.vlada) s.u.vlada = {}
+    //s.u.vlada.desc = 'Хочет заполучить задницу Николая.';
+
     s.def('replFile', 's.js');
     s.loopDelay = 2000;
     if (!s.loop) {
@@ -59,7 +62,7 @@ globalThis.s ??= {};
         'connectedSSERequests', 'def', 'defObjectProperty', 'defObjectProp', 'dumpToDisc', 'dumping', 'dumpSkip',
         'httpSlicer',
         'netId', 'netLogicExecuting', 'nodeDownloading', 'nodeExtraction',
-        'nodeHttp', 'l', 'loadStateFromFS', 'loadStateDone', 'log',
+        'nodeHttp', 'l', 'loadStateDone', 'log',
         'loop', 'loopRunning', 'loopRestart', 'loopBreak',
         'once', 'onceDB', 'scriptsChangeSlicer', 'server', 'token', 'updateIds'
     ]);
@@ -95,14 +98,6 @@ globalThis.s ??= {};
             s.dumping = 0;
         }, 1000);
     });
-
-    if (s.logger) {
-        s.httpClient = new (await s.f('94a91287-7149-4bbd-9fef-1f1d68f65d70'));
-        s.log = new (s.logger());
-        s.fs = new (await s.f('9f0e6908-4f44-49d1-8c8e-10e1b0128858'))(s.log);
-        s.os = await s.f('a4bc6fd6-649f-4709-8a74-d58523418c29');
-    }
-
     s.stateUpdate = async state => {
         for (let k in state) {
             const v = state[k]; const vType = typeof v;
@@ -116,7 +111,7 @@ globalThis.s ??= {};
             } else s.l('unknown object type', k, v);
         }
         s.loadStateDone = 1;
-        s.l('loadStateFromFS', 'fs: ', Object.keys(state).length, 'total: ', Object.keys(s).length);
+        s.l('stateUpdate', 'stateForUpdate: ', Object.keys(state).length, 'state: ', Object.keys(s).length);
     }
     s.netUpdate = async up => {
         /*await (await s.f('03454982-4657-44d0-a21a-bb034392d3a6'))(up, s.updateIds, s.net, s.f);*/
@@ -141,6 +136,17 @@ globalThis.s ??= {};
             catch (e) { console.log('stup error: ', name, up.m, e); }
         }
     }
+
+    if (s.logger) {
+        s.httpClient = await s.f('94a91287-7149-4bbd-9fef-1f1d68f65d70');
+        s.http = new s.httpClient;
+        s.log = new (s.logger());
+        s.fs = new (await s.f('9f0e6908-4f44-49d1-8c8e-10e1b0128858'))(s.log);
+        s.def('os', await s.f('a4bc6fd6-649f-4709-8a74-d58523418c29'));
+    }
+
+    //s['a4bc6fd6-649f-4709-8a74-d58523418c29'].name = 'osClass';
+
 
     s.connectedSSERequests ??= {};
     s.parseRqBody = async rq => {
@@ -350,17 +356,14 @@ globalThis.s ??= {};
     }
 
     const sendStateToNetNode = async () => {
-        const state = s.createStateDump();
-        const r = await s.httpClient.post(`http://167.172.160.174/s`, {state}, {
+        const r = await s.net.do.http.post(`/s`, {state: s.createStateDump()}, {
             cookie: 'token=',
-            //cookie: 'token=abe8e32f-6266-a310-7f32-656b9856f949\n',
         });
         console.log(r);
     }
-
     //sendStateToNetNode();
     //s.netId = 'main';
-    //s.l(await s.httpClient.post('http://167.172.160.174', {}, {}));
+    //s.l(await s.http.post('http://167.172.160.174', {}, {}));
 
     if (s['f877c6d7-e52a-48fb-b6f7-cf53c9181cc1'] && !s.netLogicExecuting) {
 
