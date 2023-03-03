@@ -25,9 +25,6 @@ globalThis.s ??= {};
     if (!s.hang) s.def('hang', {interval: {}, promise: {}, ssh: {}});
     if (!s.u) s.u = {};
 
-    // if (!s.u.vlada) s.u.vlada = {}
-    //s.u.vlada.desc = 'Хочет заполучить задницу Николая.';
-
     s.def('replFile', 's.js');
     s.loopDelay = 2000;
     if (!s.loop) {
