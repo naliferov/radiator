@@ -7,15 +7,21 @@ globalThis.s ??= {};
     s.defObjectProp = (o, k, v) => {
         Object.defineProperty(o, k, {writable: true, configurable: true, enumerable: false, value: v});
     }
+    s.l = console.log;
+
     if (typeof window !== 'undefined') {
         s = await (await fetch('/s')).json();
         s.proxy = {};
         s = new Proxy(s, s.proxy);
 
         if (s.f.js) globalThis.f = eval(s.f.js);
-        (new (await f('d75b3ec3-7f79-4749-b393-757c1836a03e'))).run();
+        (new (await f('GUI'))).run();
         return;
     }
+
+    //todo find stup and copy raspberry data net node
+    //s.l(s.stup.netNodes);
+    //s.processStop();
 
     s.def('process', (await import('node:process')).default);
     s.def('processStop', () => { s.l('stop process ', s.process.pid); s.process.exit(0); });
@@ -44,10 +50,10 @@ globalThis.s ??= {};
     }
     if (!s.loopRunning) { s.loop(); s.def('loopRunning', 1); }
 
-    s.onceDB ??= {}; s.once = id => s.onceDB[id] ? 0 : s.onceDB[id] = 1;
-    s.updateIds ??= {};
+    if (!s.onceDB) s.def('onceDB', {});
+    s.def('once', id => s.onceDB[id] ? 0 : s.onceDB[id] = 1);
+    s.def('updateIds', {});
     s.isUUID = str => str.match(/^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}/);
-    s.l = console.log;
     s.f = (id, args) => {
         const n = s[id]; if (!n) { console.log(`node not found by id [${id}]`); return; }
         try {
@@ -55,14 +61,7 @@ globalThis.s ??= {};
         }
         catch (e) { console.log(n.id); console.error(e); }
     }
-    s.dumpSkip = new Set([
-        'connectedSSERequests', 'def', 'defObjectProperty', 'defObjectProp', 'dumpToDisc', 'dumping', 'dumpSkip',
-        'httpSlicer',
-        'netId', 'netLogicExecuting', 'nodeDownloading', 'nodeExtraction',
-        'nodeHttp', 'l', 'loadStateDone', 'log',
-        'loop', 'loopRunning', 'loopRestart', 'loopBreak',
-        'once', 'onceDB', 'scriptsChangeSlicer', 'server', 'token', 'updateIds'
-    ]);
+    s.def('dumpSkip', new Set(['def', 'defObjectProp', 'dumping', 'httpSlicer', 'netId', 'token']));
     s.def('createStateDump', () => {
         const dump = {};
         for (let k in s) {
@@ -107,7 +106,7 @@ globalThis.s ??= {};
                 s[k] = v;
             } else s.l('unknown object type', k, v);
         }
-        s.loadStateDone = 1;
+        s.def('loadStateDone', 1);
         s.l('stateUpdate', 'stateForUpdate: ', Object.keys(state).length, 'state: ', Object.keys(s).length);
     }
     s.netUpdate = async up => {
@@ -142,10 +141,7 @@ globalThis.s ??= {};
         s.def('os', await s.f('a4bc6fd6-649f-4709-8a74-d58523418c29'));
     }
 
-    //s['a4bc6fd6-649f-4709-8a74-d58523418c29'].name = 'osClass';
-
-
-    s.connectedSSERequests ??= {};
+    if (!s.connectedSSERequests) s.def('connectedSSERequests', {});
     s.parseRqBody = async rq => {
         return new Promise((resolve, reject) => {
             let b = [];
@@ -187,6 +183,7 @@ globalThis.s ??= {};
             }
         }
     }
+
     s.httpSlicer = async (rq, rs) => {
         const ip = rq.socket.remoteAddress;
         const isLocal = ip === '::1' || ip === '127.0.0.1';
@@ -306,10 +303,11 @@ globalThis.s ??= {};
         rs.s('not found');
     }
 
+    //s.someObj = {};
     //s.l(await s.httpClient.post('http://167.172.160.174:8080/kw', {deleteProp: 1}));
     if (!s.server) {
-        s.nodeHttp = await import('node:http');
-        s.server = s.nodeHttp.createServer((rq, rs) => { if (s.httpSlicer) s.httpSlicer(rq, rs); });
+        s.def('nodeHttp', await import('node:http'));
+        s.def('server', s.nodeHttp.createServer((rq, rs) => { if (s.httpSlicer) s.httpSlicer(rq, rs); }));
         s.serverRestart = port => {
             s.server.closeAllConnections();
             s.server.close(() => {
@@ -332,7 +330,8 @@ globalThis.s ??= {};
             await s.stateUpdate(state);
         }
         if (await s.fsAccess('scripts') && s.fsChangesSlicer && !s.scriptsChangeSlicer) {
-            s.scriptsChangeSlicer = await s.fsChangesSlicer('scripts');
+
+            s.def('scriptsChangeSlicer', await s.fsChangesSlicer('scripts'));
             s.scriptsChangeSlicer.start();
             s.scriptsChangeSlicer.slicer = async (e) => {
                 if (e.eventType !== 'change') return;
@@ -358,14 +357,16 @@ globalThis.s ??= {};
         });
         console.log(r);
     }
+    //console.log(s.net.do.http);
     //sendStateToNetNode();
+
     //s.netId = 'main';
     //s.l(await s.http.post('http://167.172.160.174', {}, {}));
 
     if (s['f877c6d7-e52a-48fb-b6f7-cf53c9181cc1'] && !s.netLogicExecuting) {
 
         const netLogic = await s.f('f877c6d7-e52a-48fb-b6f7-cf53c9181cc1');
-        s.netLogicExecuting = 1;
+        s.def('netLogicExecuting', 1);
         try {
             await netLogic(s.netId);
         } catch (e) {
