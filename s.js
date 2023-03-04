@@ -61,7 +61,7 @@ globalThis.s ??= {};
         }
         catch (e) { console.log(n.id); console.error(e); }
     }
-    s.def('dumpSkip', new Set(['def', 'defObjectProp', 'dumping', 'httpSlicer', 'netId', 'token']));
+    s.def('dumpSkip', new Set(['def', 'defObjectProp', 'dumping', 'netId', 'token']));
     s.def('createStateDump', () => {
         const dump = {};
         for (let k in s) {
@@ -184,7 +184,7 @@ globalThis.s ??= {};
         }
     }
 
-    s.httpSlicer = async (rq, rs) => {
+    s.def('httpSlicer', async (rq, rs) => {
         const ip = rq.socket.remoteAddress;
         const isLocal = ip === '::1' || ip === '127.0.0.1';
         const token = s.rqGetToken(rq);
@@ -301,7 +301,7 @@ globalThis.s ??= {};
         if (m[rq.mp]) { await m[rq.mp](); return; }
         //todo //if (!rs.isLongRequest && !rs.writableEnded) rs.s('rs end');
         rs.s('not found');
-    }
+    });
 
     //s.someObj = {};
     //s.l(await s.httpClient.post('http://167.172.160.174:8080/kw', {deleteProp: 1}));
