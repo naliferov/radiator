@@ -61,7 +61,7 @@ globalThis.s ??= {};
         }
         catch (e) { console.log(n.id); console.error(e); }
     }
-    s.def('dumpSkip', new Set(['def', 'defObjectProp', 'dumping', 'netId', 'token']));
+    s.def('dumpSkip', new Set(['def', 'defObjectProp', 'dumping', 'l', 'netId', 'token']));
     s.def('createStateDump', () => {
         const dump = {};
         for (let k in s) {
@@ -100,7 +100,10 @@ globalThis.s ??= {};
             if (s.isUUID(k)) {
                 s[k] = v;
             } else if (vType === 'object') {
-                if (!Array.isArray(v) && v !== null && v.js) s[k] = eval(v.js);
+                if (!Array.isArray(v) && v !== null && v.js) {
+                    try { s[k] = eval(v.js); }
+                    catch (e) { console.log(e, k); }
+                }
                 else s[k] = v;
             } else if (vType === 'string' || vType === 'number' || vType === 'boolean') {
                 s[k] = v;
@@ -183,7 +186,6 @@ globalThis.s ??= {};
             }
         }
     }
-
     s.def('httpSlicer', async (rq, rs) => {
         const ip = rq.socket.remoteAddress;
         const isLocal = ip === '::1' || ip === '127.0.0.1';
@@ -217,12 +219,13 @@ globalThis.s ??= {};
                 rs.s('ok');
             },
             'GET:/event-stream': () => {
+                const rqId = s.uuid();
+
                 s.log.info('SSE connected');
-                //s.connectedRS = rs;
+                s.connectedSSERequests[rqId] = rs;
                 rs.writeHead(200, {'Content-Type': 'text/event-stream', 'Connection': 'keep-alive', 'Cache-Control': 'no-cache'});
-                rs.write(`data: ES connected \n\n`);
                 rq.on('close', () => {
-                    //s.connectedRS = 0;
+                    delete s.connectedSSERequests[rqId];
                     s.log.info('SSE closed');
                 });
             },
@@ -302,9 +305,6 @@ globalThis.s ??= {};
         //todo //if (!rs.isLongRequest && !rs.writableEnded) rs.s('rs end');
         rs.s('not found');
     });
-
-    //s.someObj = {};
-    //s.l(await s.httpClient.post('http://167.172.160.174:8080/kw', {deleteProp: 1}));
     if (!s.server) {
         s.def('nodeHttp', await import('node:http'));
         s.def('server', s.nodeHttp.createServer((rq, rs) => { if (s.httpSlicer) s.httpSlicer(rq, rs); }));
@@ -318,11 +318,28 @@ globalThis.s ??= {};
         }
     }
 
+    if (!s.logSlicerProc && s.logger) {
+        s.def('logSlicerProc', 1);
+
+        const logger = new (s.logger());
+        logger.mute();
+        logger.onMessage(msg => {
+            const json = JSON.stringify({m: msg});
+            for (let i in s.connectedSSERequests) {
+                s.connectedSSERequests[i].write(`data: ${json}\n\n`);
+            }
+        });
+        const os = new s.os(logger);
+        os.run('tail -f s.log', false, false, (proc) => {
+            s.def('logSlicerProc', proc);
+        });
+    }
+    //s.l(s.httpSlicer.toString());
     s.def('trigger', async () => {
         s.l('trigger test');
     });
 
-    if (s.once(60)) {
+    if (s.once(62)) {
         console.log('ONCE', new Date);
 
         if (await s.fsAccess('s.json')) {
@@ -348,6 +365,7 @@ globalThis.s ??= {};
                 } catch (e) { s.log.error(e.toString(), e.stack); }
             }
         }
+
         if (s.server) s.server.listen(8080, () => console.log(`httpServer start port: 8080`));
     }
 
