@@ -7,21 +7,47 @@ globalThis.s ??= {};
     s.defObjectProp = (o, k, v) => {
         Object.defineProperty(o, k, {writable: true, configurable: true, enumerable: false, value: v});
     }
-    s.l = console.log;
+    s.def('l', console.log);
+    s.def('f', (id, args) => {
+        const idParts = id.split('.');
+        let node = s;
+        for (let i = 0; i < idParts.length; i++) {
+            if (typeof node !== 'object') {
+                console.log(`node not found by id [${id}]`); return;
+            }
+            node = node[idParts[i]];
+        }
+        if (!node) { console.log(`node not found by id [${id}]`); return; }
+        try {
+            if (typeof node === 'function') {
+                return Array.isArray(args) ? node(...args) : node();
+            }
+            return Array.isArray(args) ? eval(node.js)(...args) : eval(node.js)();
+        }
+        catch (e) { console.log(id); console.error(e); }
+    });
 
     if (typeof window !== 'undefined') {
-        s = await (await fetch('/s')).json();
+        globalThis.f = s.f;
+
+        const state = await (await fetch('/s')).json();
+        for (let k in state) s[k] = state[k];
         s.proxy = {};
         s = new Proxy(s, s.proxy);
 
-        if (s.f.js) globalThis.f = eval(s.f.js);
-        (new (await f('GUI'))).run();
+        (new (await f('apps.GUI'))).run();
         return;
     }
 
-    //todo find stup and copy raspberry data net node
-    //s.l(s.stup.netNodes);
     //s.processStop();
+    //s.GUILib = {};
+    //ed85ee2d-0f01-4707-8541-b7f46e79192e
+
+    //s.GUILib.html = eval(s['ed85ee2d-0f01-4707-8541-b7f46e79192e'].js)
+    //s.l(s.GUILib.html);
+
+
+    //todo find stup and copy raspberry data net node
 
     s.def('process', (await import('node:process')).default);
     s.def('processStop', () => { s.l('stop process ', s.process.pid); s.process.exit(0); });
@@ -30,6 +56,11 @@ globalThis.s ??= {};
     s.def('fsAccess', async path => { try { await s.nodeFS.access(path); return true; } catch { return false; } });
     if (!s.hang) s.def('hang', {interval: {}, promise: {}, ssh: {}});
     if (!s.u) s.u = {};
+
+    //s.l(s.httpClient.toString())
+
+    //const dump = s.createObjectDump(s);
+    //console.log(dump.httpClient);
 
     s.def('replFile', 's.js');
     s.loopDelay = 2000;
@@ -54,27 +85,27 @@ globalThis.s ??= {};
     s.def('once', id => s.onceDB[id] ? 0 : s.onceDB[id] = 1);
     s.def('updateIds', {});
     s.isUUID = str => str.match(/^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}/);
-    s.f = (id, args) => {
-        const n = s[id]; if (!n) { console.log(`node not found by id [${id}]`); return; }
-        try {
-            return Array.isArray(args) ? eval(n.js)(...args) : eval(n.js)();
-        }
-        catch (e) { console.log(n.id); console.error(e); }
-    }
     s.def('dumpSkip', new Set(['def', 'defObjectProp', 'dumping', 'l', 'netId', 'token']));
-    s.def('createStateDump', () => {
+    s.def('createObjectDump', object => {
         const dump = {};
-        for (let k in s) {
+        for (let k in object) {
             if (s.dumpSkip.has(k)) continue;
-            const v = s[k];
+
+            const v = object[k];
             const t = typeof v;
 
             if (s.isUUID(k)) dump[k] = v;
             else {
                 if (t === 'function') {
                     dump[k] = {js: v.toString()};
-                } else if (t === 'object' || t === 'boolean' || t === 'string' || t === 'number') {
+                } else if (t === 'boolean' || t === 'string' || t === 'number') {
                     dump[k] = v;
+                } else if (t === 'object') {
+                    if (v === null || Array.isArray(v)) {
+                        dump[k] = v;
+                    } else {
+                        dump[k] = s.createObjectDump(v);
+                    }
                 } else s.l('unknown object type', t, k, v);
             }
         }
@@ -84,7 +115,7 @@ globalThis.s ??= {};
         if (s.dumping) return;
         s.dumping = setTimeout(async () => {
             s.l('<< memory dump', new Date);
-            const dump = s.createStateDump();
+            const dump = s.createObjectDump(s);
             if (s.loadStateDone) {
                 await s.nodeFS.writeFile('s.json', JSON.stringify(dump));
             } else {
@@ -94,6 +125,7 @@ globalThis.s ??= {};
             s.dumping = 0;
         }, 1000);
     });
+
     s.stateUpdate = async state => {
         for (let k in state) {
             const v = state[k]; const vType = typeof v;
@@ -137,8 +169,7 @@ globalThis.s ??= {};
     }
 
     if (s.logger) {
-        s.httpClient = await s.f('94a91287-7149-4bbd-9fef-1f1d68f65d70');
-        s.http = new s.httpClient;
+        s.http = new (await s.f('94a91287-7149-4bbd-9fef-1f1d68f65d70'));
         s.log = new (s.logger());
         s.fs = new (await s.f('9f0e6908-4f44-49d1-8c8e-10e1b0128858'))(s.log);
         s.def('os', await s.f('a4bc6fd6-649f-4709-8a74-d58523418c29'));
@@ -212,7 +243,7 @@ globalThis.s ??= {};
             else s('', 'text/plain');
         }
         const m = {
-            'GET:/': async () => rs.s(await s.f('ed85ee2d-0f01-4707-8541-b7f46e79192e'), 'text/html'),
+            'GET:/': async () => rs.s(await s.f('GUILib.html'), 'text/html'),
             'GET:/trigger': async () => {
                 if (!isLocal) { rs.s('ok'); return; }
                 if (s.trigger) s.trigger();
@@ -238,7 +269,7 @@ globalThis.s ??= {};
                 }
                 rs.s();
             },
-            'GET:/s': async () => rs.s(s.createStateDump()),
+            'GET:/s': async () => rs.s(s.createObjectDump(s)),
             'POST:/s': async () => {
                 const {state} = await s.parseRqBody(rq);
                 s.stateUpdate(state);
@@ -334,7 +365,6 @@ globalThis.s ??= {};
             s.def('logSlicerProc', proc);
         });
     }
-    //s.l(s.httpSlicer.toString());
     s.def('trigger', async () => {
         s.l('trigger test');
     });
@@ -370,13 +400,11 @@ globalThis.s ??= {};
     }
 
     const sendStateToNetNode = async () => {
-        const r = await s.net.do.http.post(`/s`, {state: s.createStateDump()}, {
+        const r = await s.net.do.http.post(`/s`, {state: s.createObjectDump(s)}, {
             cookie: 'token=',
         });
         console.log(r);
     }
-    //console.log(s.net.do.http);
-    //sendStateToNetNode();
 
     //s.netId = 'main';
     //s.l(await s.http.post('http://167.172.160.174', {}, {}));
