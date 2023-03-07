@@ -8,7 +8,7 @@ globalThis.s ??= {};
         Object.defineProperty(o, k, {writable: true, configurable: true, enumerable: false, value: v});
     }
     s.def('l', console.log);
-    s.def('f', (id, args) => {
+    s.def('fSearch', id => {
         const idParts = id.split('.');
         let node = s;
         for (let i = 0; i < idParts.length; i++) {
@@ -17,12 +17,18 @@ globalThis.s ??= {};
             }
             node = node[idParts[i]];
         }
-        if (!node) { console.log(`node not found by id [${id}]`); return; }
+        if (!node) {
+            console.log(`node not found by id [${id}]`);
+            return;
+        }
+        return node;
+    });
+    s.def('f', (id, args) => {
         try {
-            if (typeof node === 'function') {
-                return Array.isArray(args) ? node(...args) : node();
-            }
-            return Array.isArray(args) ? eval(node.js)(...args) : eval(node.js)();
+            let node = s.fSearch(id);
+            let func = typeof node === 'function' ? node : eval(node.js);
+
+            return Array.isArray(args) ? func(...args) : func();
         }
         catch (e) { console.log(id); console.error(e); }
     });
@@ -39,13 +45,14 @@ globalThis.s ??= {};
         return;
     }
 
+    //delete s.apps.GUI.__js__;
+
     //s.processStop();
     //s.GUILib = {};
-    //ed85ee2d-0f01-4707-8541-b7f46e79192e
-
-    //s.GUILib.html = eval(s['ed85ee2d-0f01-4707-8541-b7f46e79192e'].js)
+    //s.GUILib.outlinerNodes = eval(s['1551fa98-9e21-4d03-b549-096ae76ca3c2'].js);
     //s.l(s.GUILib.html);
 
+    //1551fa98-9e21-4d03-b549-096ae76ca3c2
 
     //todo find stup and copy raspberry data net node
 
@@ -302,7 +309,7 @@ globalThis.s ??= {};
                     const nodeType = typeof node;
                     if (nodeType === 'object') {
                         node[key] = v;
-                        if (key === 'js') {
+                        if (key === 'js' && node.__js__) {
                             try { node.__js__ = eval(v); } catch (e) { console.error(e); }
                         }
                         if (deleteProp) delete node[key];
