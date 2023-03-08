@@ -8,3 +8,4 @@ node*.tar.xz
 font.zip
 state.zip
 s.log
+.DS_Store
