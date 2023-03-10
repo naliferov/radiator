@@ -45,15 +45,9 @@ globalThis.s ??= {};
         return;
     }
 
-    //delete s.apps.GUI.__js__;
-
+    //s.u.aliferov.jsLib.telegramBot = eval(s['bfd248df-86d0-44f6-babb-101d43aca7c5'].js);
+    //s.apps.GUI.html = s.GUILib.html;
     //s.processStop();
-    //s.GUILib = {};
-    //s.GUILib.outlinerNodes = eval(s['1551fa98-9e21-4d03-b549-096ae76ca3c2'].js);
-    //s.l(s.GUILib.html);
-
-    //1551fa98-9e21-4d03-b549-096ae76ca3c2
-
     //todo find stup and copy raspberry data net node
 
     s.def('process', (await import('node:process')).default);
@@ -133,24 +127,52 @@ globalThis.s ??= {};
         }, 1000);
     });
 
+    s.def('startupScripts', new Set([
+        'fsChangesSlicer', 'isUUID', 'uuid'
+    ]));
+    s.def('handleJs', () => {
+
+        const iterate = (obj, parentObject, parentKey, kPath = '') => {
+
+            if (Array.isArray(obj)) return;
+            for (let k in obj) {
+
+                const v = obj[k];
+                const vType = typeof v;
+
+                //UUID check
+                if (k.match(/^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}/)) {}
+                else if (vType === 'string') {
+
+                    if (k === 'js' && v) {
+                        if (s.startupScripts.has(kPath)) {
+                            try {
+                                if (parentObject && parentKey) parentObject[parentKey] = eval(v);
+                                else obj[k] = eval(v);
+                                //if scripts dir
+                                //todo write file
+                            }
+                            catch (e) { console.log(e, k); }
+                        }
+                    }
+                } else if (vType === 'object') {
+                    iterate(v, obj, k, kPath ? (kPath + '.' + k) : k);
+                }
+            }
+        }
+        iterate(s);
+    });
     s.stateUpdate = async state => {
         for (let k in state) {
-            const v = state[k]; const vType = typeof v;
-            if (s.isUUID(k)) {
-                s[k] = v;
-            } else if (vType === 'object') {
-                if (!Array.isArray(v) && v !== null && v.js) {
-                    try { s[k] = eval(v.js); }
-                    catch (e) { console.log(e, k); }
-                }
-                else s[k] = v;
-            } else if (vType === 'string' || vType === 'number' || vType === 'boolean') {
-                s[k] = v;
-            } else s.l('unknown object type', k, v);
+            if (k === 'isUUID') continue; //todo remove
+            s[k] = state[k];
         }
         s.def('loadStateDone', 1);
         s.l('stateUpdate', 'stateForUpdate: ', Object.keys(state).length, 'state: ', Object.keys(s).length);
     }
+
+    //s.processStop();
+
     s.netUpdate = async up => {
         /*await (await s.f('03454982-4657-44d0-a21a-bb034392d3a6'))(up, s.updateIds, s.net, s.f);*/
         //     // if (s.isMainNode && up.m === '/k' && up.k === 'js' && up.v) {
@@ -175,7 +197,7 @@ globalThis.s ??= {};
         }
     }
 
-    if (s.logger) {
+    if (s.logger && typeof s.logger === 'function') {
         s.http = new (await s.f('94a91287-7149-4bbd-9fef-1f1d68f65d70'));
         s.log = new (s.logger());
         s.fs = new (await s.f('9f0e6908-4f44-49d1-8c8e-10e1b0128858'))(s.log);
@@ -250,7 +272,7 @@ globalThis.s ??= {};
             else s('', 'text/plain');
         }
         const m = {
-            'GET:/': async () => rs.s(await s.f('GUILib.html'), 'text/html'),
+            'GET:/': async () => rs.s(await s.f('apps.GUI.html'), 'text/html'),
             'GET:/trigger': async () => {
                 if (!isLocal) { rs.s('ok'); return; }
                 if (s.trigger) s.trigger();
@@ -372,17 +394,17 @@ globalThis.s ??= {};
             s.def('logSlicerProc', proc);
         });
     }
-    s.def('trigger', async () => {
-        s.l('trigger test');
-    });
+    s.def('trigger', async () => s.l('trigger test'));
 
-    if (s.once(62)) {
+    if (s.once(88)) {
         console.log('ONCE', new Date);
 
         if (await s.fsAccess('s.json')) {
             const state = JSON.parse(await s.nodeFS.readFile('s.json', 'utf8'));
             await s.stateUpdate(state);
+            s.handleJs(state);
         }
+
         if (await s.fsAccess('scripts') && s.fsChangesSlicer && !s.scriptsChangeSlicer) {
 
             s.def('scriptsChangeSlicer', await s.fsChangesSlicer('scripts'));
