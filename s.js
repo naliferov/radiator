@@ -1,14 +1,20 @@
 globalThis.s ??= {};
 
 (async () => {
-    s.def = (k, v) => {
-        Object.defineProperty(s, k, {writable: true, configurable: true, enumerable: false, value: v});
-    }
-    s.defObjectProp = (o, k, v) => {
-        Object.defineProperty(o, k, {writable: true, configurable: true, enumerable: false, value: v});
-    }
+    Object.defineProperty(s, 'def', {
+        writable: true, configurable: true, enumerable: false,
+        value: (k, v) => {
+            Object.defineProperty(s, k, {writable: true, configurable: true, enumerable: false, value: v});
+        }
+    });
+    Object.defineProperty(s, 'defObjectProp', {
+        writable: true, configurable: true, enumerable: false,
+        value: (o, k, v) => {
+            Object.defineProperty(o, k, {writable: true, configurable: true, enumerable: false, value: v});
+        }
+    });
     s.def('l', console.log);
-    s.def('fSearch', id => {
+    s.def('nodeSearch', id => {
         const idParts = id.split('.');
         let node = s;
         for (let i = 0; i < idParts.length; i++) {
@@ -25,7 +31,8 @@ globalThis.s ??= {};
     });
     s.def('f', (id, args) => {
         try {
-            let node = s.fSearch(id);
+            let node = s.nodeSearch(id);
+            if (!node) return;
             let func = typeof node === 'function' ? node : eval(node.js);
 
             return Array.isArray(args) ? func(...args) : func();
@@ -45,9 +52,10 @@ globalThis.s ??= {};
         return;
     }
 
-    //s.u.aliferov.jsLib.telegramBot = eval(s['bfd248df-86d0-44f6-babb-101d43aca7c5'].js);
-    //s.apps.GUI.html = s.GUILib.html;
-    //s.processStop();
+    //s.u.aliferov.jsLib.selector = { js: s['3ba1418a-adcf-4cae-981c-531e76f93b3f'].js }
+    // s.netNodesCheck = {
+    //     js: s['f877c6d7-e52a-48fb-b6f7-cf53c9181cc1'].js
+    // };
     //todo find stup and copy raspberry data net node
 
     s.def('process', (await import('node:process')).default);
@@ -127,52 +135,47 @@ globalThis.s ??= {};
         }, 1000);
     });
 
-    s.def('startupScripts', new Set([
-        'fsChangesSlicer', 'isUUID', 'uuid'
-    ]));
-    s.def('handleJs', () => {
+    s.def('startupScripts', new Set(['fsChangesSlicer', 'isUUID', 'logger', 'uuid']));
+    s.def('handleJs', async () => {
 
-        const iterate = (obj, parentObject, parentKey, kPath = '') => {
+        const isScriptsDirExists = await s.fsAccess('scripts');
+        const iterate = async (obj, parentObject, parentKey, kPath = '') => {
 
             if (Array.isArray(obj)) return;
             for (let k in obj) {
 
-                const v = obj[k];
-                const vType = typeof v;
-
-                //UUID check
-                if (k.match(/^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}/)) {}
-                else if (vType === 'string') {
-
-                    if (k === 'js' && v) {
-                        if (s.startupScripts.has(kPath)) {
-                            try {
-                                if (parentObject && parentKey) parentObject[parentKey] = eval(v);
-                                else obj[k] = eval(v);
-                                //if scripts dir
-                                //todo write file
-                            }
-                            catch (e) { console.log(e, k); }
+                const v = obj[k]; const vType = typeof v;
+                //UUID check.
+                if (k.match(/^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}/)) continue;
+                if (vType === 'object') {
+                    await iterate(v, obj, k, kPath ? (kPath + '.' + k) : k);
+                    continue;
+                }
+                if (vType === 'string' && k === 'js' && v) {
+                    if (s.startupScripts.has(kPath)) {
+                        try {
+                            if (parentObject && parentKey) parentObject[parentKey] = eval(v);
+                            else obj[k] = eval(v);
                         }
+                        catch (e) { console.log(e, k); }
                     }
-                } else if (vType === 'object') {
-                    iterate(v, obj, k, kPath ? (kPath + '.' + k) : k);
+                    //This is for fallback editing of scripts if dashboard is broken.
+                    if (isScriptsDirExists && kPath) {
+                        await s.nodeFS.writeFile('scripts/' + kPath + '.js', v);
+                    }
                 }
             }
         }
-        iterate(s);
+        await iterate(s);
     });
-    s.stateUpdate = async state => {
-        for (let k in state) {
-            if (k === 'isUUID') continue; //todo remove
-            s[k] = state[k];
+    s.setUpdate = async state => {
+        for (let k in s) {
+            if (!state[k]) delete s[k];
         }
+        for (let k in state) s[k] = state[k];
         s.def('loadStateDone', 1);
-        s.l('stateUpdate', 'stateForUpdate: ', Object.keys(state).length, 'state: ', Object.keys(s).length);
+        s.l('setUpdate', 'setForUpdate: ', Object.keys(state).length, 'set: ', Object.keys(s).length);
     }
-
-    //s.processStop();
-
     s.netUpdate = async up => {
         /*await (await s.f('03454982-4657-44d0-a21a-bb034392d3a6'))(up, s.updateIds, s.net, s.f);*/
         //     // if (s.isMainNode && up.m === '/k' && up.k === 'js' && up.v) {
@@ -200,7 +203,7 @@ globalThis.s ??= {};
     if (s.logger && typeof s.logger === 'function') {
         s.http = new (await s.f('94a91287-7149-4bbd-9fef-1f1d68f65d70'));
         s.log = new (s.logger());
-        s.fs = new (await s.f('9f0e6908-4f44-49d1-8c8e-10e1b0128858'))(s.log);
+        s.fs = new (await s.f('fsClass'))(s.log);
         s.def('os', await s.f('a4bc6fd6-649f-4709-8a74-d58523418c29'));
     }
 
@@ -279,7 +282,7 @@ globalThis.s ??= {};
                 rs.s('ok');
             },
             'GET:/event-stream': () => {
-                const rqId = s.uuid();
+                const rqId = s.f('uuid');
 
                 s.log.info('SSE connected');
                 s.connectedSSERequests[rqId] = rs;
@@ -301,7 +304,8 @@ globalThis.s ??= {};
             'GET:/s': async () => rs.s(s.createObjectDump(s)),
             'POST:/s': async () => {
                 const {state} = await s.parseRqBody(rq);
-                s.stateUpdate(state);
+                s.setUpdate(state);
+                await s.handleJs(state);
                 rs.s('ok');
             },
             'POST:/k': async () => {
@@ -368,18 +372,21 @@ globalThis.s ??= {};
     if (!s.server) {
         s.def('nodeHttp', await import('node:http'));
         s.def('server', s.nodeHttp.createServer((rq, rs) => { if (s.httpSlicer) s.httpSlicer(rq, rs); }));
-        s.serverRestart = port => {
+        s.def('serverStop', () => {
+            s.server.closeAllConnections();
+            s.server.close(() => s.server.closeAllConnections());
+        });
+        s.def('serverRestart', port => {
             s.server.closeAllConnections();
             s.server.close(() => {
                 s.l('server stop');
                 s.server.closeAllConnections();
                 s.server.listen(port, () => s.l(`server start ${port}`));
             });
-        }
+        });
     }
 
     if (!s.logSlicerProc && s.logger) {
-        s.def('logSlicerProc', 1);
 
         const logger = new (s.logger());
         logger.mute();
@@ -390,36 +397,43 @@ globalThis.s ??= {};
             }
         });
         const os = new s.os(logger);
+        s.def('logSlicerProc', 1);
+
         os.run('tail -f s.log', false, false, (proc) => {
             s.def('logSlicerProc', proc);
         });
     }
     s.def('trigger', async () => s.l('trigger test'));
 
-    if (s.once(88)) {
+    if (s.once(101)) {
         console.log('ONCE', new Date);
 
         if (await s.fsAccess('s.json')) {
             const state = JSON.parse(await s.nodeFS.readFile('s.json', 'utf8'));
-            await s.stateUpdate(state);
-            s.handleJs(state);
+            await s.setUpdate(state);
+            await s.handleJs(state);
         }
-
-        if (await s.fsAccess('scripts') && s.fsChangesSlicer && !s.scriptsChangeSlicer) {
-
-            s.def('scriptsChangeSlicer', await s.fsChangesSlicer('scripts'));
-            s.scriptsChangeSlicer.start();
-            s.scriptsChangeSlicer.slicer = async (e) => {
+        if (await s.fsAccess('scripts') && s.fsChangesSlicer && !s.scriptsChangesSlicer) {
+            s.def('scriptsChangesSlicer', await s.fsChangesSlicer('scripts'));
+            s.scriptsChangesSlicer.start();
+        }
+        if (s.scriptsChangesSlicer) {
+            s.scriptsChangesSlicer.slicer = async (e) => {
                 if (e.eventType !== 'change') return;
                 const id = e.filename.slice(0, -3);
-                const node = s[id];
+                const node = s.nodeSearch(id);
                 if (!node) return;
-                console.log('updateFromFS', node.id, node.name);
-                const newJS = await s.nodeFS.readFile('scripts/' + e.filename, 'utf8');
-                if (node.js === newJS) { console.log('js already updated'); return; }
+
+                const tNode = typeof node;
+
+                console.log('updateFromFS', node.id, e.filename);
+                const js = await s.nodeFS.readFile('scripts/' + e.filename, 'utf8');
+
+                //todo some node can be functions, so we need make node.toString() before comparison
+                if (node.js === js) { console.log('js already updated'); return; }
                 try {
-                    eval(newJS);
-                    node.js = newJS;
+                    eval(js); //just for validation of js
+                    if (tNode === 'object') node.js = js;
                     s.dumpStateToDisc();
                 } catch (e) { s.log.error(e.toString(), e.stack); }
             }
@@ -434,19 +448,16 @@ globalThis.s ??= {};
         });
         console.log(r);
     }
-
+    //sendStateToNetNode();
     //s.netId = 'main';
     //s.l(await s.http.post('http://167.172.160.174', {}, {}));
 
-    if (s['f877c6d7-e52a-48fb-b6f7-cf53c9181cc1'] && !s.netLogicExecuting) {
+    if (s.netNodesCheck && !s.netCheckExecuting) {
 
-        const netLogic = await s.f('f877c6d7-e52a-48fb-b6f7-cf53c9181cc1');
-        s.def('netLogicExecuting', 1);
-        try {
-            await netLogic(s.netId);
-        } catch (e) {
-            s.l(e);
-        }
-        s.netLogicExecuting = 0;
+        const netNodesCheck = await s.f('netNodesCheck');
+        s.def('netNodesCheckExecuting', 1);
+        try { await netNodesCheck(s.netId); }
+        catch (e) { s.l(e); }
+        s.netNodesCheckExecuting = 0;
     }
 })();
