@@ -52,24 +52,29 @@ globalThis.s ??= {};
         return;
     }
 
-    //s.u.aliferov.jsLib.selector = { js: s['3ba1418a-adcf-4cae-981c-531e76f93b3f'].js }
-    // s.netNodesCheck = {
-    //     js: s['f877c6d7-e52a-48fb-b6f7-cf53c9181cc1'].js
-    // };
-    //todo find stup and copy raspberry data net node
-
     s.def('process', (await import('node:process')).default);
     s.def('processStop', () => { s.l('stop process ', s.process.pid); s.process.exit(0); });
     //s.def('processRestart', () => { s.l('stop process ', s.process.pid); s.process.exit(0); });
     s.def('nodeFS', (await import('node:fs')).promises);
     s.def('fsAccess', async path => { try { await s.nodeFS.access(path); return true; } catch { return false; } });
-    if (!s.hang) s.def('hang', {interval: {}, promise: {}, ssh: {}});
+    //if (!s.hang) s.def('hang', {interval: {}, promise: {}, ssh: {}});
     if (!s.u) s.u = {};
+    if (!s.sys) s.sys = {};
+    if (!s.std) s.std = {};
 
-    //s.l(s.httpClient.toString())
+    //const a = s['bcc07804-c1bc-472d-a599-e4f5a3174300']; delete a.id;
+    //delete s.apps.timeEditor;
 
-    //const dump = s.createObjectDump(s);
-    //console.log(dump.httpClient);
+    //s.u.aliferov.jsLib.langParser = { js: s['a28c97ba-edc0-4670-8902-cd40eca8d451'].js }
+    //s.apps.timeEditor.jsFrontend = { js: s['9822fce5-9fcf-4703-b633-85d83b23c714'].js }
+    //s.raspberry = {};
+    //s.l(rasp);
+    //s.std.ui.input = { js: s['924bfc18-6a27-48e0-aa18-16edfbad9bbb'].js };
+
+    //s.std.unixTs = s.unixTs
+
+    //s.l(s.netNodesCheck);
+    //todo find stup and copy raspberry data net node
 
     s.def('replFile', 's.js');
     s.loopDelay = 2000;
@@ -81,7 +86,7 @@ globalThis.s ??= {};
                 try {
                     const js = await s.nodeFS.readFile(s.replFile, 'utf8');
                     eval(js);
-                    s.js = js;
+                    s.def('js', js);
                 }
                 catch (e) { console.log(e); }
             }
@@ -89,6 +94,13 @@ globalThis.s ??= {};
         s.process.on('uncaughtException', e => console.error('[[uncaughtException]]', e));
     }
     if (!s.loopRunning) { s.loop(); s.def('loopRunning', 1); }
+
+    if (s.std.logger) {
+        s.http = new (await s.f('std.httpClient'));
+        s.log = new (await s.f('std.logger'));
+        s.def('fs', new (await s.f('fsClass'))(s.log));
+        s.def('os', await s.f('std.os'));
+    }
 
     if (!s.onceDB) s.def('onceDB', {});
     s.def('once', id => s.onceDB[id] ? 0 : s.onceDB[id] = 1);
@@ -168,7 +180,7 @@ globalThis.s ??= {};
         }
         await iterate(s);
     });
-    s.setUpdate = async state => {
+    s.sys.setUpdate = async state => {
         for (let k in s) {
             if (!state[k]) delete s[k];
         }
@@ -176,7 +188,7 @@ globalThis.s ??= {};
         s.def('loadStateDone', 1);
         s.l('setUpdate', 'setForUpdate: ', Object.keys(state).length, 'set: ', Object.keys(s).length);
     }
-    s.netUpdate = async up => {
+    s.sys.netUpdate = async up => {
         /*await (await s.f('03454982-4657-44d0-a21a-bb034392d3a6'))(up, s.updateIds, s.net, s.f);*/
         //     // if (s.isMainNode && up.m === '/k' && up.k === 'js' && up.v) {
         //     //     await s.fs.writeFile(`scripts/${up.nodeId}.js`, up.v);
@@ -200,15 +212,8 @@ globalThis.s ??= {};
         }
     }
 
-    if (s.logger && typeof s.logger === 'function') {
-        s.http = new (await s.f('94a91287-7149-4bbd-9fef-1f1d68f65d70'));
-        s.log = new (s.logger());
-        s.fs = new (await s.f('fsClass'))(s.log);
-        s.def('os', await s.f('a4bc6fd6-649f-4709-8a74-d58523418c29'));
-    }
-
     if (!s.connectedSSERequests) s.def('connectedSSERequests', {});
-    s.parseRqBody = async rq => {
+    s.std.rqParseBody = async rq => {
         return new Promise((resolve, reject) => {
             let b = [];
             rq.on('data', chunk => b.push(chunk)); rq.on('error', err => reject(err));
@@ -219,7 +224,7 @@ globalThis.s ??= {};
             });
         });
     }
-    s.resolveRqStatic = async (rq, rs) => {
+    s.std.rqResolveStatic = async (rq, rs) => {
         const lastPart = rq.pathname.split('/').pop();
         const split = lastPart.split('.');
         if (split.length < 2) return false;
@@ -238,7 +243,7 @@ globalThis.s ??= {};
             return false;
         }
     }
-    s.rqGetToken = rq => {
+    s.std.rqGetToken = rq => {
         if (!rq.headers.cookie || rq.headers.cookie.length < 1) return;
 
         const cookies = rq.headers.cookie.split(';');
@@ -252,10 +257,13 @@ globalThis.s ??= {};
     s.def('httpSlicer', async (rq, rs) => {
         const ip = rq.socket.remoteAddress;
         const isLocal = ip === '::1' || ip === '127.0.0.1';
-        const token = s.rqGetToken(rq);
+        const token = s.std.rqGetToken(rq);
 
-        if (s.token && rq.method === 'POST' && s.token !== token) {
-            rs.writeHead(403).end('no'); return;
+        if (rq.method === 'POST' && !isLocal) {
+            if (!token || !s.token || token !== s.token) {
+                rs.writeHead(403).end('no');
+                return;
+            }
         }
 
         const url = new URL('http://t.c' + rq.url);
@@ -295,7 +303,7 @@ globalThis.s ??= {};
             'GET:/token': () => { rs.s(typeof s.token); },
             'POST:/token': () => {
                 if (isLocal || !s.token) {
-                    const {token} = s.parseRqBody(rq);
+                    const {token} = s.std.rqParseBody(rq);
                     if (token) s.token = token;
                     rs.s('ok'); return;
                 }
@@ -303,13 +311,13 @@ globalThis.s ??= {};
             },
             'GET:/s': async () => rs.s(s.createObjectDump(s)),
             'POST:/s': async () => {
-                const {state} = await s.parseRqBody(rq);
-                s.setUpdate(state);
+                const {state} = await s.std.rqParseBody(rq);
+                s.sys.setUpdate(state);
                 await s.handleJs(state);
                 rs.s('ok');
             },
             'POST:/k': async () => {
-                const {kPath, v, updateId, deleteProp} = await s.parseRqBody(rq);
+                const {kPath, v, updateId, deleteProp} = await s.std.rqParseBody(rq);
                 if (kPath && Array.isArray(kPath)) {
 
                     const kNodes = [s];
@@ -359,12 +367,12 @@ globalThis.s ??= {};
             },
             'POST:/fsWrite': async () => {
                 if (!rq.query.path || rq.query.path.includes('..')) { rs.s('path invalid'); return; }
-                const b = await s.parseRqBody(rq);
+                const b = await s.std.rqParseBody(rq);
                 if (b) await s.nodeFS.writeFile(rq.query.path, b);
                 rs.s('ok');
             },
         }
-        if (await s.resolveRqStatic(rq, rs)) return;
+        if (await s.std.rqResolveStatic(rq, rs)) return;
         if (m[rq.mp]) { await m[rq.mp](); return; }
         //todo //if (!rs.isLongRequest && !rs.writableEnded) rs.s('rs end');
         rs.s('not found');
@@ -386,9 +394,9 @@ globalThis.s ??= {};
         });
     }
 
-    if (!s.logSlicerProc && s.logger) {
+    if (!s.logSlicerProc && s.std.logger) {
 
-        const logger = new (s.logger());
+        const logger = new (await s.f('std.logger'));
         logger.mute();
         logger.onMessage(msg => {
             const json = JSON.stringify({m: msg});
@@ -398,19 +406,18 @@ globalThis.s ??= {};
         });
         const os = new s.os(logger);
         s.def('logSlicerProc', 1);
-
         os.run('tail -f s.log', false, false, (proc) => {
             s.def('logSlicerProc', proc);
         });
     }
     s.def('trigger', async () => s.l('trigger test'));
 
-    if (s.once(101)) {
+    if (s.once(103)) {
         console.log('ONCE', new Date);
 
         if (await s.fsAccess('s.json')) {
             const state = JSON.parse(await s.nodeFS.readFile('s.json', 'utf8'));
-            await s.setUpdate(state);
+            await s.sys.setUpdate(state);
             await s.handleJs(state);
         }
         if (await s.fsAccess('scripts') && s.fsChangesSlicer && !s.scriptsChangesSlicer) {
@@ -452,12 +459,19 @@ globalThis.s ??= {};
     //s.netId = 'main';
     //s.l(await s.http.post('http://167.172.160.174', {}, {}));
 
-    if (s.netNodesCheck && !s.netCheckExecuting) {
+    //s.sys.netNodesCheck = s.netNodesCheck;
+    //await s.handleJs(state);
 
-        const netNodesCheck = await s.f('netNodesCheck');
-        s.def('netNodesCheckExecuting', 1);
+
+    const sys = s.sys;
+
+    if (sys.netNodesCheck && !sys.netNodesCheckIsActive) {
+
+        const netNodesCheck = await s.f('sys.netNodesCheck');
+        s.defObjectProp(sys, 'netNodesCheckIsActive', 1);
+
         try { await netNodesCheck(s.netId); }
         catch (e) { s.l(e); }
-        s.netNodesCheckExecuting = 0;
+        sys.netNodesCheckIsActive = 0;
     }
 })();
